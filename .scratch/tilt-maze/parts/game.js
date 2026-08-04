@@ -87,11 +87,24 @@ function updateHUD() {
    ---------------------------------------------------------------------
    Legend
      #  wall        .  floor       I  ice (barely any friction)
-     G  goo (heavy drag)           O  hole        o  ball start
-     S  latch switch (crossing it flips every door)
-     H  hold plate  (doors open only while a ball rests on it)
-     D  door, closed by default    d  door, open by default
+     G  goo (heavy drag)
+     o  white ball  O  white hole
+     p  green ball  P  green hole
+     S  latch switch (crossing it opens every door; crossing it again shuts them)
+     D  door, shut until a switch is crossed
+
+   Colour is the whole point of a two-ball room: a ball ignores — and rolls
+   straight over — a hole that is not its own, so the two balls need different
+   journeys out of the one gravity they share.
    ===================================================================== */
+const BALL_CH = ['o', 'p'], HOLE_CH = ['O', 'P'];
+const BALL_COLOR = { o: 'white', p: 'green' };
+const HOLE_COLOR = { O: 'white', P: 'green' };
+const BALL_SKIN = {
+  white: { core: '#ffffff', mid: '#cfeaff', low: '#5f93b8', edge: '#16303f', glow: 'rgba(180,230,255,0.8)' },
+  green: { core: '#ffffff', mid: '#b6ffd6', low: '#3aa972', edge: '#0d2c1e', glow: 'rgba(126,240,168,0.85)' }
+};
+const HOLE_LINE = { white: 'rgba(214,240,255,0.95)', green: 'rgba(126,240,168,0.95)' };
 const STORY_LEVELS = [
   { /* 1 — nothing but gravity */
     name: '第一課：讓它自己滾過去', time: 55, grid: [
@@ -143,14 +156,16 @@ const STORY_LEVELS = [
       '#.....#.....#',
       '#############']
   },
-  { /* 6 — two balls share one gravity: the maze has to separate them for you */
+  { /* 6 — two balls, one gravity, and each hole only accepts its own colour.
+         The lanes hand you the answer: run both to the right wall, then use the
+         right-hand column to drop the white one and lift the green one. */
     name: '第六課：兩個念頭同時成立', time: 70, grid: [
       '##############',
-      '#.o.......O..#',
+      '#.o.......P..#',
       '#....####....#',
       '#....#..#....#',
       '#....####....#',
-      '#.o.......O..#',
+      '#.p.......O..#',
       '##############']
   },
   { /* 7 — everything at once */
@@ -165,12 +180,14 @@ const STORY_LEVELS = [
   }
 ];
 
-/* Endless levels are generated, then checked for reachability — an unsolvable
-   room is worse than an easy one. */
+/* Endless levels are BUILT solvable rather than generated-and-hoped-for: every
+   ball and its matching hole are drawn from the same open region, so a walled-off
+   pocket can never hold the thing you need. The check at the end is a backstop,
+   not the mechanism. */
 function genLevel(n) {
   const cols = clamp(11 + Math.floor(n / 3), 11, 17);
   const rows = clamp(7 + Math.floor(n / 4), 7, 11);
-  const balls = n >= 12 ? 3 : n >= 6 ? 2 : 1;
+  const balls = n >= 6 ? 2 : 1;
 
   for (let attempt = 0; attempt < 80; attempt++) {
     const g = [];
@@ -197,32 +214,43 @@ function genLevel(n) {
       for (let j = 0; j < h; j++) for (let i2 = 0; i2 < w; i2++) put(x + i2, y + j, ch);
     }
 
-    // ball / hole placement, forced apart so the level is a journey
-    const free = [];
-    for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) if (g[y][x] === '.') free.push([x, y]);
-    if (free.length < balls * 4) continue;
+    // Everything lands in ONE open region — the largest one — so no piece of the
+    // puzzle can end up behind a wall the ball has no way through.
+    const region = regionMap(g);
+    const buckets = {};
+    for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) {
+      const id = region[y][x];
+      if (id < 0 || g[y][x] !== '.') continue;   // only plain floor is a legal spot
+      (buckets[id] = buckets[id] || []).push([x, y]);
+    }
+    const home = Object.values(buckets).sort((a, b) => b.length - a.length)[0] || [];
+    if (home.length < balls * 2 + 4) continue;
+
     const spots = [];
     let ok = true;
     for (let i = 0; i < balls * 2; i++) {
-      const cand = free.filter(p => spots.every(q => Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) > 3));
+      const cand = home.filter(p => spots.every(q => Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) > 3));
       if (!cand.length) { ok = false; break; }
       spots.push(pick(cand));
     }
     if (!ok) continue;
-    for (let i = 0; i < balls; i++) g[spots[i][1]][spots[i][0]] = 'o';
-    for (let i = 0; i < balls; i++) g[spots[balls + i][1]][spots[balls + i][0]] = 'O';
+    for (let i = 0; i < balls; i++) {
+      g[spots[i][1]][spots[i][0]] = BALL_CH[i];
+      g[spots[balls + i][1]][spots[balls + i][0]] = HOLE_CH[i];
+    }
 
     const grid = g.map(r => r.join(''));
-    if (!reachable(grid)) continue;
+    if (!solvable(grid)) continue;
     return { name: '第 ' + n + ' 關', time: Math.max(14, Math.round(34 - n * 1.3)), grid };
   }
+  // last resort: a known-good hand-authored room rather than a broken one
   return { name: '第 ' + n + ' 關', time: 30, grid: STORY_LEVELS[0].grid };
 }
 
-/** every ball must be able to reach at least one hole across open tiles */
-function reachable(grid) {
-  const rows = grid.length, cols = grid[0].length;
-  const solid = (x, y) => x < 0 || y < 0 || x >= cols || y >= rows || grid[y][x] === '#';
+/** flood-fill id per open tile; -1 for walls */
+function regionMap(g) {
+  const rows = g.length, cols = g[0].length;
+  const solid = (x, y) => x < 0 || y < 0 || x >= cols || y >= rows || g[y][x] === '#';
   const region = [];
   for (let y = 0; y < rows; y++) region.push(new Array(cols).fill(-1));
   let id = 0;
@@ -238,12 +266,26 @@ function reachable(grid) {
     }
     id++;
   }
-  const holes = new Set(), balls = [];
-  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
-    if (grid[y][x] === 'O') holes.add(region[y][x]);
-    if (grid[y][x] === 'o') balls.push(region[y][x]);
+  return region;
+}
+
+/** EVERY ball must be able to reach the hole of ITS OWN colour */
+function solvable(grid) {
+  const g = grid.map(r => r.split(''));
+  const region = regionMap(g);
+  const need = {};   // colour -> { ball: [regions], hole: Set(regions) }
+  for (let y = 0; y < g.length; y++) for (let x = 0; x < g[0].length; x++) {
+    const ch = g[y][x], id = region[y][x];
+    const bc = BALL_COLOR[ch], hc = HOLE_COLOR[ch];
+    if (bc) { (need[bc] = need[bc] || { ball: [], hole: new Set() }).ball.push(id); }
+    if (hc) { (need[hc] = need[hc] || { ball: [], hole: new Set() }).hole.add(id); }
   }
-  return balls.length > 0 && holes.size > 0 && balls.every(b => holes.has(b));
+  const colors = Object.keys(need);
+  if (!colors.length) return false;
+  return colors.every(c => {
+    const e = need[c];
+    return e.ball.length > 0 && e.hole.size > 0 && e.ball.every(r => e.hole.has(r));
+  });
 }
 
 /* =====================================================================
@@ -253,7 +295,7 @@ const TILE = 24, BALL_R = 8;
 const GRAV = 940;          // px/s² at full tilt
 const TILT_K = 78, TILT_D = 9.5;   // spring back to level, with a little overshoot
 const REST = 0.42, REST_ICE = 0.62;
-const MU = { '.': 1.15, 'I': 0.12, 'G': 6.4, 'S': 1.15, 'H': 1.15, 'O': 1.15, 'd': 1.15, 'D': 1.15 };
+const MU = { '.': 1.15, 'I': 0.12, 'G': 6.4, 'S': 1.15, 'O': 1.15, 'D': 1.15 };
 const SINK_SPEED = 400;    // faster than this and the ball rims out
 
 let field = null;
@@ -265,13 +307,15 @@ function loadLevel(def, onWin, onFail) {
   const balls = [], holes = [];
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
     const ch = grid[y][x];
-    if (ch === 'o') { balls.push(makeBall(x, y)); grid[y][x] = '.'; }
-    if (ch === 'O') holes.push({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2, gx: x, gy: y });
+    if (BALL_COLOR[ch]) { balls.push(makeBall(x, y, BALL_COLOR[ch])); grid[y][x] = '.'; }
+    if (HOLE_COLOR[ch]) {
+      holes.push({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2, gx: x, gy: y, color: HOLE_COLOR[ch] });
+    }
   }
   field = {
     def, grid, rows, cols, balls, holes,
     tx: 0, ty: 0, vtx: 0, vty: 0,
-    latched: false, hold: false,
+    latched: false,
     time: def.time, timeLeft: def.time,
     running: false, over: false,
     tilts: 0, elapsed: 0,
@@ -283,8 +327,11 @@ function loadLevel(def, onWin, onFail) {
   arenaCap.textContent = def.name;
   drawField();
 }
-function makeBall(gx, gy) {
-  return { x: gx * TILE + TILE / 2, y: gy * TILE + TILE / 2, vx: 0, vy: 0, r: BALL_R, sunk: 0, tile: gx + ',' + gy };
+function makeBall(gx, gy, color) {
+  return {
+    x: gx * TILE + TILE / 2, y: gy * TILE + TILE / 2, vx: 0, vy: 0,
+    r: BALL_R, sunk: 0, color: color || 'white', tile: gx + ',' + gy
+  };
 }
 
 function sizeBoard() {
@@ -303,12 +350,11 @@ function tileAt(gx, gy) {
   if (!field || gy < 0 || gx < 0 || gy >= field.rows || gx >= field.cols) return '#';
   return field.grid[gy][gx];
 }
-function doorsOpen() { return field.latched !== field.hold; }   // XOR: latch flips, plate holds
+function doorsOpen() { return field.latched; }
 function isSolid(gx, gy) {
   const ch = tileAt(gx, gy);
   if (ch === '#') return true;
   if (ch === 'D') return !doorsOpen();
-  if (ch === 'd') return doorsOpen();
   return false;
 }
 
@@ -327,9 +373,6 @@ function stepPhysics(dt) {
   if (!targetX && Math.abs(f.tx) < 0.005 && Math.abs(f.vtx) < 0.05) { f.tx = 0; f.vtx = 0; }
   if (!targetY && Math.abs(f.ty) < 0.005 && Math.abs(f.vty) < 0.05) { f.ty = 0; f.vty = 0; }
 
-  // --- hold plates are read before movement, so a door can slam on a ball ---
-  f.hold = f.balls.some(b => !b.sunk && tileAt(Math.floor(b.x / TILE), Math.floor(b.y / TILE)) === 'H');
-
   f.balls.forEach(b => {
     if (b.sunk) { b.sunk += dt; return; }
     const gx = Math.floor(b.x / TILE), gy = Math.floor(b.y / TILE);
@@ -341,8 +384,10 @@ function stepPhysics(dt) {
     const damp = Math.exp(-mu * dt);
     b.vx *= damp; b.vy *= damp;
 
-    // hole attraction: the rim helps a slow ball and betrays a fast one
+    // hole attraction: the rim helps a slow ball and betrays a fast one.
+    // A hole of the wrong colour is just floor — it neither pulls nor takes.
     f.holes.forEach(h => {
+      if (h.color !== b.color) return;
       const dx = h.x - b.x, dy = h.y - b.y, d = Math.hypot(dx, dy);
       if (d < TILE * 0.55 && d > 0.001) {
         const pull = 520 * (1 - d / (TILE * 0.55));
@@ -363,7 +408,7 @@ function stepPhysics(dt) {
 
     // sinking
     f.holes.forEach(h => {
-      if (b.sunk) return;
+      if (b.sunk || h.color !== b.color) return;
       const d = Math.hypot(h.x - b.x, h.y - b.y);
       const sp = Math.hypot(b.vx, b.vy);
       if (d < TILE * 0.30 && sp < SINK_SPEED) { b.sunk = 0.0001; b.vx = b.vy = 0; b.sx = h.x; b.sy = h.y; }
@@ -568,28 +613,29 @@ function drawField() {
   // ---- plates ----
   for (let y = 0; y < f.rows; y++) for (let x = 0; x < f.cols; x++) {
     const ch = f.grid[y][x];
-    if (ch !== 'S' && ch !== 'H') continue;
-    const on = ch === 'S' ? f.latched : f.hold;
+    if (ch !== 'S') continue;
+    const on = f.latched;
     const col = on ? 'rgba(63,230,224,0.95)' : LINE.plate;
     poly(ctx, rectAt(x * TILE + 3, y * TILE + 3, TILE - 6, TILE - 6, 0.5),
       on ? 'rgba(63,230,224,0.18)' : 'rgba(185,139,255,0.07)', col, 1.2, on ? 14 : 6);
     poly(ctx, rectAt(x * TILE + 8, y * TILE + 8, TILE - 16, TILE - 16, 0.6), null, col, 1, on ? 10 : 0);
   }
 
-  // ---- holes: a ring of light with a void inside ----
+  // ---- holes: a ring of light with a void inside, in the colour it accepts ----
   f.holes.forEach(h => {
+    const line = HOLE_LINE[h.color] || LINE.hole;
     const ring = [];
     for (let i = 0; i <= 22; i++) {
       const a = (i / 22) * Math.PI * 2;
       ring.push(project(h.x + Math.cos(a) * 10, h.y + Math.sin(a) * 10, 0.6));
     }
-    poly(ctx, ring, 'rgba(0,0,0,0.92)', LINE.hole, 1.6, 14);
+    poly(ctx, ring, 'rgba(0,0,0,0.92)', line, 1.6, 14);
     const inner = [];
     for (let i = 0; i <= 22; i++) {
       const a = (i / 22) * Math.PI * 2;
       inner.push(project(h.x + Math.cos(a) * 5, h.y + Math.sin(a) * 5, -3));
     }
-    poly(ctx, inner, 'rgba(0,0,0,1)', 'rgba(126,240,168,0.25)', 1, 0);
+    poly(ctx, inner, 'rgba(0,0,0,1)', line.replace(/[\d.]+\)$/, '0.25)'), 1, 0);
   });
 
   // ---- everything that stands up, sorted back to front ----
@@ -603,7 +649,7 @@ function drawField() {
   });
   for (let y = 0; y < f.rows; y++) for (let x = 0; x < f.cols; x++) {
     const ch = f.grid[y][x];
-    if (ch !== 'D' && ch !== 'd') continue;
+    if (ch !== 'D') continue;
     const shut = isSolid(x, y);
     const r = { x: x * TILE, y: y * TILE, w: TILE, h: TILE };
     const c = project(r.x + TILE / 2, r.y + TILE / 2, WALL_H);
@@ -631,9 +677,10 @@ function drawField() {
       const k = Math.max(0, 1 - b.sunk * 4);
       if (k <= 0) return;
       const p = project(b.sx, b.sy, -2);
+      const skin = BALL_SKIN[b.color];
       items.push({
         d: p.d, draw: () => {
-          ctx.fillStyle = `rgba(234,246,255,${k})`;
+          ctx.fillStyle = skin.glow.replace(/[\d.]+\)$/, k + ')');
           ctx.beginPath(); ctx.arc(p.x, p.y, b.r * k * cam.S * p.k, 0, 7); ctx.fill();
         }
       });
@@ -641,6 +688,7 @@ function drawField() {
     }
     const p = project(b.x, b.y, b.r);
     const sh = project(b.x, b.y, 0.5);
+    const skin = BALL_SKIN[b.color];
     items.push({
       d: p.d, draw: () => {
         // contact shadow first — it is what tells you the ball is off the floor
@@ -652,12 +700,12 @@ function drawField() {
         ctx.restore();
 
         const g = ctx.createRadialGradient(p.x - rr * 0.35, p.y - rr * 0.45, rr * 0.1, p.x, p.y, rr);
-        g.addColorStop(0, '#ffffff');
-        g.addColorStop(0.35, '#cfeaff');
-        g.addColorStop(0.75, '#5f93b8');
-        g.addColorStop(1, '#16303f');
+        g.addColorStop(0, skin.core);
+        g.addColorStop(0.35, skin.mid);
+        g.addColorStop(0.75, skin.low);
+        g.addColorStop(1, skin.edge);
         ctx.fillStyle = g;
-        ctx.shadowColor = 'rgba(180,230,255,0.8)'; ctx.shadowBlur = 12;
+        ctx.shadowColor = skin.glow; ctx.shadowBlur = 12;
         ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, 7); ctx.fill();
         ctx.shadowBlur = 0;
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
@@ -977,6 +1025,9 @@ function nextEndlessLevel() {
   endless.level++;
   clockLabel.textContent = '無限模式 · 第 ' + endless.level + ' 關';
   loadLevel(genLevel(endless.level), endlessWin, endlessFail);
+  // the one level where a new rule shows up gets one line of explanation, in
+  // the caption the field already has — no popup, no tutorial screen
+  if (endless.level === 6) arenaCap.textContent = '兩顆球了。白球只進白洞，綠球只進綠洞。';
   setTimeout(() => { field.running = true; setInputEnabled(true); }, 450);
 }
 
