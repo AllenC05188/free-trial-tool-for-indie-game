@@ -14,9 +14,11 @@
 
 /* ---------- DOM ---------- */
 const $ = id => document.getElementById(id);
-const stage = $('stage'), stageHint = $('stageHint'), npcTok = $('npcTok'), playerTok = $('playerTok');
-const bubble = $('bubble'), bubbleTag = $('bubbleTag'), bubbleText = $('bubbleText');
-const arenaWrap = $('arenaWrap'), arenaBoard = $('arenaBoard'), arena = $('arena'), arenaCap = $('arenaCap');
+const whoPane = $('whoPane'), mePane = $('mePane'), whoFx = $('whoFx'), meFx = $('meFx');
+const npcTok = $('npcTok'), playerTok = $('playerTok');
+const whoName = $('whoName'), whoState = $('whoState'), meState = $('meState');
+const bubbleTag = $('bubbleTag'), bubbleText = $('bubbleText');
+const arenaBoard = $('arenaBoard'), arena = $('arena'), arenaCap = $('arenaCap');
 const clockFill = $('clockFill'), clockLabel = $('clockLabel'), clockRight = $('clockRight');
 const influenceNum = $('influenceNum'), scoreLabel = $('scoreLabel');
 const factionsPanel = $('factionsPanel'), newsList = $('newsList'), tickerTrack = $('tickerTrack');
@@ -30,7 +32,7 @@ const startScreen = $('startScreen');
 const dUp = $('dUp'), dDown = $('dDown'), dLeft = $('dLeft'), dRight = $('dRight');
 const DPAD = { up: dUp, down: dDown, left: dLeft, right: dRight };
 
-const STREET_CELL = 4, ICON_CELL = 7;
+const ICON_CELL = 7;
 const FACTIONS = ['professor', 'religion', 'merchant', 'ai', 'netizen'];
 
 /* ---------- STATE ---------- */
@@ -104,7 +106,6 @@ const BALL_SKIN = {
   white: { core: '#ffffff', mid: '#cfeaff', low: '#5f93b8', edge: '#16303f', glow: 'rgba(180,230,255,0.8)' },
   green: { core: '#ffffff', mid: '#b6ffd6', low: '#3aa972', edge: '#0d2c1e', glow: 'rgba(126,240,168,0.85)' }
 };
-const HOLE_LINE = { white: 'rgba(214,240,255,0.95)', green: 'rgba(126,240,168,0.95)' };
 const STORY_LEVELS = [
   { /* 1 — nothing but gravity */
     name: '第一課：讓它自己滾過去', time: 55, grid: [
@@ -322,7 +323,6 @@ function loadLevel(def, onWin, onFail) {
     onWin, onFail
   };
   sizeBoard();
-  arenaWrap.classList.add('on');
   arenaCap.classList.remove('warn');
   arenaCap.textContent = def.name;
   drawField();
@@ -334,17 +334,21 @@ function makeBall(gx, gy, color) {
   };
 }
 
+/* The tray takes the whole middle band of the screen — at 1920x1080 that is
+   roughly a 1000x600 stage. It is the largest object in the layout by a wide
+   margin, which is the entire point of the 70/20/10 split. */
 function sizeBoard() {
   if (!field) return;
-  const availW = Math.min(560, $('app').clientWidth || 560);
-  const availH = Math.max(220, Math.min(380, window.innerHeight * 0.46));
+  const host = arenaBoard.parentElement;
+  const availW = Math.max(320, (host.clientWidth || 900) - 8);
+  const availH = Math.max(240, (host.clientHeight || 520) - 34);
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   cam.w = availW; cam.h = availH; arena._dpr = dpr;
   arena.width = Math.round(availW * dpr); arena.height = Math.round(availH * dpr);
   arena.style.width = availW + 'px'; arena.style.height = availH + 'px';
   fitCamera();
 }
-window.addEventListener('resize', sizeBoard);
+window.addEventListener('resize', () => { sizeBoard(); sizeFx(); });
 
 function tileAt(gx, gy) {
   if (!field || gy < 0 || gx < 0 || gy >= field.rows || gx >= field.cols) return '#';
@@ -474,18 +478,21 @@ function collideBalls() {
    edges over near-black faces, the way the reference art reads.
    ===================================================================== */
 const CAM = { yaw: -0.60, pitch: 1.02, dist: 2600, tiltMax: 0.30 };
-const WALL_H = 15, TRAY_D = 12;
-const LINE = {
-  edge: 'rgba(214,240,255,0.95)', edgeSoft: 'rgba(150,205,240,0.34)',
-  face: 'rgba(120,180,225,0.055)', faceTop: 'rgba(150,205,240,0.10)',
-  floor: '#070c11', tray: 'rgba(180,220,250,0.55)',
-  ice: 'rgba(63,230,224,0.85)', iceFace: 'rgba(63,230,224,0.10)',
-  goo: 'rgba(126,240,168,0.75)', gooFace: 'rgba(60,150,95,0.16)',
-  hole: 'rgba(126,240,168,0.95)', plate: 'rgba(185,139,255,0.85)',
-  door: 'rgba(255,140,66,0.9)', ball: '#eaf6ff'
+const WALL_H = 15, TRAY_D = 14;
+
+/* One material vocabulary, so nothing is drawn at "default brightness":
+   glass rim > interior wall > floor > terrain, each with its own weight. */
+const MAT = {
+  rimEdge: 'rgba(226,244,255,', rimFace: 'rgba(150,205,240,',
+  wallEdge: 'rgba(196,226,246,', wallFace: 'rgba(110,165,205,',
+  floor0: '#0a1016', floor1: '#050809',
+  ice: '63,230,224', goo: '126,240,168',
+  plate: '185,139,255', door: '255,140,66'
 };
+const HOLE_RGB = { white: '214,240,255', green: '126,240,168' };
 
 let cam = { S: 1, ox: 0, oy: 0, w: 0, h: 0 };
+let now = 0;   // seconds, for everything that breathes
 
 /** board space (x, y in physics px; z up) -> screen */
 function project(x, y, z) {
@@ -521,9 +528,8 @@ function fitCamera() {
     x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x);
     y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y);
   })));
-  const m = 16;
-  // the extra headroom keeps a tilted tray from clipping at the edges
-  cam.S = Math.min((cam.w - m * 2) / (x1 - x0), (cam.h - m * 2) / (y1 - y0)) * 0.88;
+  const m = 18;
+  cam.S = Math.min((cam.w - m * 2) / (x1 - x0), (cam.h - m * 2) / (y1 - y0)) * 0.90;
   cam.ox = cam.w / 2 - ((x0 + x1) / 2) * cam.S;
   cam.oy = cam.h / 2 - ((y0 + y1) / 2) * cam.S;
   f.tx = keepTx; f.ty = keepTy;
@@ -544,7 +550,7 @@ function wallSlabs(pred) {
       h++;
     }
     for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) done[y + j][x + i] = true;
-    out.push({ x: x * TILE, y: y * TILE, w: w * TILE, h: h * TILE });
+    out.push({ x: x * TILE, y: y * TILE, w: w * TILE, h: h * TILE, gx: x, gy: y, gw: w, gh: h });
   }
   return out;
 }
@@ -561,21 +567,57 @@ function poly(ctx, pts, fill, stroke, width, glow) {
     ctx.shadowBlur = 0;
   }
 }
+function line(ctx, a, b, stroke, width, glow) {
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+  ctx.strokeStyle = stroke; ctx.lineWidth = width;
+  if (glow) { ctx.shadowColor = stroke; ctx.shadowBlur = glow; }
+  ctx.stroke(); ctx.shadowBlur = 0;
+}
 
-/** an extruded box from z=z0 to z=z1, drawn back-to-front */
-function drawBox(ctx, r, z0, z1, opt) {
+/* An extruded volume. `glass` gives it the rim treatment: a gradient body, a
+   bright top lip and a specular streak — the thing that separates the tray
+   from the walls inside it. */
+function drawBox(ctx, r, z0, z1, o) {
   const c = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
   const top = c.map(([x, y]) => project(x, y, z1));
   const bot = c.map(([x, y]) => project(x, y, z0));
-  // side walls, far ones first
+
   const sides = [0, 1, 2, 3].map(i => {
     const j = (i + 1) % 4;
     return { i, j, d: (top[i].d + top[j].d) / 2 };
   }).sort((a, b) => b.d - a.d);
-  sides.forEach(({ i, j }) => {
-    poly(ctx, [top[i], top[j], bot[j], bot[i]], opt.face, opt.edgeSoft, 1, 0);
+
+  sides.forEach(({ i, j }, order) => {
+    // faces nearer the camera catch more light; that gradient is the material
+    const near = order / 3;
+    const g = ctx.createLinearGradient(top[i].x, top[i].y, bot[i].x, bot[i].y);
+    g.addColorStop(0, o.faceCol + (o.faceA * (0.5 + near * 0.9)).toFixed(3) + ')');
+    g.addColorStop(1, o.faceCol + (o.faceA * 0.12).toFixed(3) + ')');
+    poly(ctx, [top[i], top[j], bot[j], bot[i]], g,
+      o.edgeCol + (o.edgeA * (0.16 + near * 0.26)).toFixed(3) + ')', 1, 0);
   });
-  poly(ctx, top, opt.faceTop, opt.edge, opt.width || 1.4, opt.glow || 8);
+
+  const tg = ctx.createLinearGradient(top[0].x, top[0].y, top[2].x, top[2].y);
+  tg.addColorStop(0, o.faceCol + (o.topA * 1.25).toFixed(3) + ')');
+  tg.addColorStop(1, o.faceCol + (o.topA * 0.35).toFixed(3) + ')');
+  poly(ctx, top, tg, o.edgeCol + o.edgeA + ')', o.width, o.glow);
+
+  if (o.glass) {
+    // one specular streak along the lip nearest the camera
+    const near = sides[3];
+    line(ctx, top[near.i], top[near.j], 'rgba(255,255,255,0.85)', o.width * 0.7, 14);
+  }
+}
+
+/* Painter order for a merged slab is its NEAREST corner, not its centre: a long
+   bar running from the back of the tray to the front is in front of everything
+   its near end passes, and sorting it by its middle makes it disappear behind
+   walls it should occlude. */
+function nearDepth(r) {
+  return Math.min(
+    project(r.x, r.y, WALL_H).d, project(r.x + r.w, r.y, WALL_H).d,
+    project(r.x, r.y + r.h, WALL_H).d, project(r.x + r.w, r.y + r.h, WALL_H).d
+  );
 }
 
 function drawField() {
@@ -590,132 +632,306 @@ function drawField() {
     project(x, y, z), project(x + w, y, z), project(x + w, y + h, z), project(x, y + h, z)
   ];
 
-  // ---- the tray: a slab of dark glass with a lit rim ----
-  drawBox(ctx, { x: 0, y: 0, w: W, h: H }, -TRAY_D, 0,
-    { face: 'rgba(90,140,180,0.05)', edgeSoft: 'rgba(150,205,240,0.22)', faceTop: LINE.floor, edge: LINE.tray, width: 1.6, glow: 10 });
+  // ================= the tray: dark glass under the whole board =============
+  // Only the slab BELOW the floor is drawn here. The lit rim is the border ring
+  // of real wall tiles, drawn with the rest of the walls further down — if it
+  // were drawn as one big box around the outside, its inner face would sit a
+  // whole tile away from where the ball actually collides, which is exactly
+  // what an "air wall" looks like.
+  const floorQuad = rectAt(0, 0, W, H, 0);
+  drawBox(ctx, { x: 0, y: 0, w: W, h: H }, -TRAY_D, 0, {
+    faceCol: MAT.rimFace + '', faceA: 0.16, topA: 0.02,
+    edgeCol: MAT.rimEdge + '', edgeA: 0.4, width: 1.4, glow: 12
+  });
 
-  // ---- terrain panels, flush with the floor ----
+  // interior: translucent black, with a soft sheen so it reads as a surface
+  const fg = ctx.createLinearGradient(floorQuad[0].x, floorQuad[0].y, floorQuad[2].x, floorQuad[2].y);
+  fg.addColorStop(0, MAT.floor0);
+  fg.addColorStop(1, MAT.floor1);
+  poly(ctx, floorQuad, fg, null);
+  ctx.save();
+  ctx.beginPath();
+  floorQuad.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+  ctx.closePath(); ctx.clip();
+  // faint lattice — enough to read the scale of the room, not enough to notice
+  for (let x = TILE; x < W; x += TILE) line(ctx, project(x, 0, 0), project(x, H, 0), 'rgba(150,205,240,0.035)', 1, 0);
+  for (let y = TILE; y < H; y += TILE) line(ctx, project(0, y, 0), project(W, y, 0), 'rgba(150,205,240,0.035)', 1, 0);
+  // the sheen slides as the tray tips, which is another read on the tilt
+  const sh = ctx.createLinearGradient(0, 0, cam.w, cam.h);
+  const sAmt = clamp(0.05 + (Math.abs(f.tx) + Math.abs(f.ty)) * 0.05, 0, 0.16);
+  sh.addColorStop(clamp(0.35 + f.tx * 0.25, 0, 1), `rgba(150,205,240,${sAmt})`);
+  sh.addColorStop(clamp(0.75 + f.tx * 0.25, 0.02, 1), 'rgba(0,0,0,0)');
+  ctx.fillStyle = sh; ctx.fillRect(0, 0, cam.w, cam.h);
+  ctx.restore();
+
+  // ================= terrain =================
   wallSlabs(ch => ch === 'I').forEach(r => {
-    poly(ctx, rectAt(r.x, r.y, r.w, r.h, 0.4), LINE.iceFace, LINE.ice, 1, 6);
-    for (let gx = r.x + TILE * 0.5; gx < r.x + r.w; gx += TILE) {
-      const a = project(gx, r.y + 3, 0.4), b = project(gx, r.y + r.h - 3, 0.4);
-      poly(ctx, [a, b], null, 'rgba(63,230,224,0.22)', 1, 0);
-    }
+    poly(ctx, rectAt(r.x, r.y, r.w, r.h, 0.4), `rgba(${MAT.ice},0.07)`, `rgba(${MAT.ice},0.5)`, 1, 6);
+    for (let gx = r.x + TILE * 0.5; gx < r.x + r.w; gx += TILE)
+      line(ctx, project(gx, r.y + 4, 0.4), project(gx, r.y + r.h - 4, 0.4), `rgba(${MAT.ice},0.16)`, 1, 0);
   });
   wallSlabs(ch => ch === 'G').forEach(r => {
-    poly(ctx, rectAt(r.x, r.y, r.w, r.h, 0.4), LINE.gooFace, LINE.goo, 1, 5);
-    for (let gy = r.y + TILE * 0.5; gy < r.y + r.h; gy += TILE * 0.5) {
-      const a = project(r.x + 3, gy, 0.4), b = project(r.x + r.w - 3, gy, 0.4);
-      poly(ctx, [a, b], null, 'rgba(126,240,168,0.14)', 1, 0);
-    }
+    poly(ctx, rectAt(r.x, r.y, r.w, r.h, 0.4), `rgba(40,110,70,0.20)`, `rgba(${MAT.goo},0.36)`, 1, 4);
+    for (let gy = r.y + TILE * 0.4; gy < r.y + r.h; gy += TILE * 0.45)
+      line(ctx, project(r.x + 4, gy, 0.4), project(r.x + r.w - 4, gy, 0.4), `rgba(${MAT.goo},0.10)`, 1, 0);
   });
 
-  // ---- plates ----
+  // ================= switch plates =================
   for (let y = 0; y < f.rows; y++) for (let x = 0; x < f.cols; x++) {
-    const ch = f.grid[y][x];
-    if (ch !== 'S') continue;
-    const on = f.latched;
-    const col = on ? 'rgba(63,230,224,0.95)' : LINE.plate;
+    if (f.grid[y][x] !== 'S') continue;
+    const on = f.latched, pulse = 0.5 + 0.5 * Math.sin(now * 3);
+    const col = on ? `rgba(${MAT.ice},${(0.6 + pulse * 0.4).toFixed(2)})` : `rgba(${MAT.plate},0.6)`;
     poly(ctx, rectAt(x * TILE + 3, y * TILE + 3, TILE - 6, TILE - 6, 0.5),
-      on ? 'rgba(63,230,224,0.18)' : 'rgba(185,139,255,0.07)', col, 1.2, on ? 14 : 6);
+      on ? `rgba(${MAT.ice},0.14)` : `rgba(${MAT.plate},0.05)`, col, 1.2, on ? 14 : 5);
     poly(ctx, rectAt(x * TILE + 8, y * TILE + 8, TILE - 16, TILE - 16, 0.6), null, col, 1, on ? 10 : 0);
   }
 
-  // ---- holes: a ring of light with a void inside, in the colour it accepts ----
+  // ================= holes: they want the ball =================
   f.holes.forEach(h => {
-    const line = HOLE_LINE[h.color] || LINE.hole;
-    const ring = [];
-    for (let i = 0; i <= 22; i++) {
-      const a = (i / 22) * Math.PI * 2;
-      ring.push(project(h.x + Math.cos(a) * 10, h.y + Math.sin(a) * 10, 0.6));
+    const rgb = HOLE_RGB[h.color] || HOLE_RGB.white;
+    // how close is the ball that this hole can actually take?
+    let near = 0, suitor = null;
+    f.balls.forEach(b => {
+      if (b.sunk || b.color !== h.color) return;
+      const d = Math.hypot(h.x - b.x, h.y - b.y);
+      const t = clamp(1 - d / (TILE * 4), 0, 1);
+      if (t > near) { near = t; suitor = b; }
+    });
+
+    // the pull, drawn as space bending: rings that tighten as the ball closes
+    if (near > 0.02) {
+      for (let i = 0; i < 3; i++) {
+        const phase = (now * 0.55 + i / 3) % 1;
+        const rad = 34 * (1 - phase) + 11;
+        const a = near * (1 - phase) * 0.5;
+        const ring = [];
+        for (let s = 0; s <= 20; s++) {
+          const ang = (s / 20) * Math.PI * 2;
+          ring.push(project(h.x + Math.cos(ang) * rad, h.y + Math.sin(ang) * rad, 0.5));
+        }
+        poly(ctx, ring, null, `rgba(${rgb},${a.toFixed(3)})`, 1, 6);
+      }
+      // filaments reaching for the ball
+      if (suitor && near > 0.25) {
+        for (let i = 0; i < 3; i++) {
+          const t = ((now * 1.6 + i / 3) % 1);
+          const px = h.x + (suitor.x - h.x) * t, py = h.y + (suitor.y - h.y) * t;
+          const p = project(px, py, 1 + Math.sin(t * Math.PI) * 5);
+          ctx.fillStyle = `rgba(${rgb},${(near * (1 - t) * 0.85).toFixed(3)})`;
+          ctx.beginPath(); ctx.arc(p.x, p.y, 2.2 * cam.S * p.k, 0, 7); ctx.fill();
+        }
+      }
     }
-    poly(ctx, ring, 'rgba(0,0,0,0.92)', line, 1.6, 14);
-    const inner = [];
-    for (let i = 0; i <= 22; i++) {
-      const a = (i / 22) * Math.PI * 2;
-      inner.push(project(h.x + Math.cos(a) * 5, h.y + Math.sin(a) * 5, -3));
+
+    // the rim, breathing on its own even when nothing is near
+    const breathe = 0.72 + 0.28 * Math.sin(now * 1.6 + h.x * 0.05);
+    const glowA = clamp(0.35 + near * 0.65, 0, 1) * breathe;
+    const ring = [], inner = [];
+    for (let i = 0; i <= 26; i++) {
+      const a = (i / 26) * Math.PI * 2;
+      ring.push(project(h.x + Math.cos(a) * 10.5, h.y + Math.sin(a) * 10.5, 0.6));
+      inner.push(project(h.x + Math.cos(a) * 6, h.y + Math.sin(a) * 6, -5));
     }
-    poly(ctx, inner, 'rgba(0,0,0,1)', line.replace(/[\d.]+\)$/, '0.25)'), 1, 0);
+    poly(ctx, ring, 'rgba(0,0,0,0.95)', `rgba(${rgb},${glowA.toFixed(3)})`, 1.6 + near * 1.4, 12 + near * 26);
+    poly(ctx, inner, 'rgba(0,0,0,1)', `rgba(${rgb},${(0.18 * breathe).toFixed(3)})`, 1, 0);
   });
 
-  // ---- everything that stands up, sorted back to front ----
+  // ================= everything that stands up, sorted back to front =======
   const items = [];
+  // EVERY solid tile gets drawn — the border ring simply gets the glass
+  // material, so what you see and what the ball hits are the same surface.
   wallSlabs(ch => ch === '#').forEach(r => {
-    const c = project(r.x + r.w / 2, r.y + r.h / 2, WALL_H);
-    items.push({
-      d: c.d, draw: () => drawBox(ctx, r, 0, WALL_H,
-        { face: LINE.face, edgeSoft: LINE.edgeSoft, faceTop: LINE.faceTop, edge: LINE.edge, width: 1.35, glow: 9 })
-    });
+    const rim = r.gx === 0 || r.gy === 0 || r.gx + r.gw === f.cols || r.gy + r.gh === f.rows;
+    const c = nearDepth(r);
+    const mat = rim
+      ? { faceCol: MAT.rimFace, faceA: 0.17, topA: 0.05, edgeCol: MAT.rimEdge, edgeA: 0.6, width: 1.7, glow: 14, glass: true }
+      : { faceCol: MAT.wallFace, faceA: 0.10, topA: 0.09, edgeCol: MAT.wallEdge, edgeA: 0.55, width: 1.2, glow: 7 };
+    items.push({ d: c, draw: () => drawBox(ctx, r, 0, WALL_H, mat) });
   });
+
   for (let y = 0; y < f.rows; y++) for (let x = 0; x < f.cols; x++) {
-    const ch = f.grid[y][x];
-    if (ch !== 'D') continue;
+    if (f.grid[y][x] !== 'D') continue;
     const shut = isSolid(x, y);
     const r = { x: x * TILE, y: y * TILE, w: TILE, h: TILE };
-    const c = project(r.x + TILE / 2, r.y + TILE / 2, WALL_H);
     items.push({
-      d: c.d, draw: () => {
+      d: nearDepth(r), draw: () => {
         if (shut) {
           drawBox(ctx, r, 0, WALL_H, {
-            face: 'rgba(255,140,66,0.09)', edgeSoft: 'rgba(255,140,66,0.35)',
-            faceTop: 'rgba(255,140,66,0.14)', edge: LINE.door, width: 1.3, glow: 12
+            faceCol: `rgba(${MAT.door},`, faceA: 0.16, topA: 0.12,
+            edgeCol: `rgba(${MAT.door},`, edgeA: 0.8, width: 1.3, glow: 14
           });
         } else {
-          // an open gate leaves its posts behind, so the player can see it opened
-          [[r.x + 1, 3], [r.x + TILE - 3, 3]].forEach(([px, w]) =>
-            drawBox(ctx, { x: px, y: r.y, w, h: TILE }, 0, WALL_H * 0.55, {
-              face: 'rgba(255,140,66,0.05)', edgeSoft: 'rgba(255,140,66,0.18)',
-              faceTop: 'rgba(255,140,66,0.06)', edge: 'rgba(255,140,66,0.4)', width: 1, glow: 4
+          [[r.x + 1, 3], [r.x + TILE - 4, 3]].forEach(([px, w]) =>
+            drawBox(ctx, { x: px, y: r.y, w, h: TILE }, 0, WALL_H * 0.5, {
+              faceCol: `rgba(${MAT.door},`, faceA: 0.06, topA: 0.05,
+              edgeCol: `rgba(${MAT.door},`, edgeA: 0.3, width: 1, glow: 4
             }));
         }
       }
     });
   }
 
+  // ================= the balls: the heaviest objects on screen =============
   f.balls.forEach(b => {
+    const skin = BALL_SKIN[b.color];
+
     if (b.sunk) {
-      const k = Math.max(0, 1 - b.sunk * 4);
+      const k = Math.max(0, 1 - b.sunk * 3);
       if (k <= 0) return;
-      const p = project(b.sx, b.sy, -2);
-      const skin = BALL_SKIN[b.color];
+      const p = project(b.sx, b.sy, -2 - (1 - k) * 6);
       items.push({
         d: p.d, draw: () => {
-          ctx.fillStyle = skin.glow.replace(/[\d.]+\)$/, k + ')');
-          ctx.beginPath(); ctx.arc(p.x, p.y, b.r * k * cam.S * p.k, 0, 7); ctx.fill();
+          const rr = b.r * cam.S * p.k * (0.4 + k * 0.6);
+          ctx.fillStyle = skin.glow.replace(/[\d.]+\)$/, (k * 0.9) + ')');
+          ctx.shadowColor = skin.glow; ctx.shadowBlur = 24 * k;
+          ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, 7); ctx.fill();
+          ctx.shadowBlur = 0;
         }
       });
       return;
     }
+
+    // trail: sampled in board space so it survives the tilt
+    const sp = Math.hypot(b.vx, b.vy);
+    b.trail = b.trail || [];
+    if (!b.tLast || now - b.tLast > 0.016) {
+      b.tLast = now;
+      b.trail.push({ x: b.x, y: b.y, t: now });
+      if (b.trail.length > 16) b.trail.shift();
+    }
+
     const p = project(b.x, b.y, b.r);
-    const sh = project(b.x, b.y, 0.5);
-    const skin = BALL_SKIN[b.color];
+    const shp = project(b.x, b.y, 0.5);
     items.push({
       d: p.d, draw: () => {
-        // contact shadow first — it is what tells you the ball is off the floor
         const rr = b.r * cam.S * p.k;
+
+        // motion trail — the ball has mass and it has been somewhere
+        if (sp > 40) {
+          b.trail.forEach((t, i) => {
+            const age = (now - t.t) / 0.28;
+            if (age > 1) return;
+            const tp = project(t.x, t.y, b.r * 0.7);
+            ctx.fillStyle = skin.glow.replace(/[\d.]+\)$/, (0.16 * (1 - age) * clamp(sp / 300, 0, 1)).toFixed(3) + ')');
+            ctx.beginPath(); ctx.arc(tp.x, tp.y, rr * (0.35 + 0.5 * (1 - age)), 0, 7); ctx.fill();
+          });
+        }
+
+        // contact shadow: tight and dark when slow, smeared when quick
         ctx.save();
-        ctx.translate(sh.x, sh.y); ctx.scale(1, 0.5);
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.beginPath(); ctx.arc(0, 0, rr * 1.05, 0, 7); ctx.fill();
+        ctx.translate(shp.x, shp.y); ctx.scale(1, 0.46);
+        ctx.fillStyle = `rgba(0,0,0,${(0.62 - clamp(sp / 900, 0, 0.3)).toFixed(2)})`;
+        ctx.beginPath(); ctx.arc(0, 0, rr * (1.02 + clamp(sp / 700, 0, 0.5)), 0, 7); ctx.fill();
         ctx.restore();
 
-        const g = ctx.createRadialGradient(p.x - rr * 0.35, p.y - rr * 0.45, rr * 0.1, p.x, p.y, rr);
+        // the sphere
+        const g = ctx.createRadialGradient(p.x - rr * 0.38, p.y - rr * 0.46, rr * 0.08, p.x, p.y, rr);
         g.addColorStop(0, skin.core);
-        g.addColorStop(0.35, skin.mid);
-        g.addColorStop(0.75, skin.low);
+        g.addColorStop(0.32, skin.mid);
+        g.addColorStop(0.74, skin.low);
         g.addColorStop(1, skin.edge);
         ctx.fillStyle = g;
-        ctx.shadowColor = skin.glow; ctx.shadowBlur = 12;
+        ctx.shadowColor = skin.glow; ctx.shadowBlur = 16;
         ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, 7); ctx.fill();
         ctx.shadowBlur = 0;
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.beginPath(); ctx.arc(p.x - rr * 0.3, p.y - rr * 0.4, rr * 0.22, 0, 7); ctx.fill();
+        // rim light along the lower-right, which is what makes it read as solid
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, rr * 0.94, Math.PI * 0.05, Math.PI * 0.85);
+        ctx.strokeStyle = skin.glow.replace(/[\d.]+\)$/, '0.55)');
+        ctx.lineWidth = Math.max(1, rr * 0.13); ctx.stroke();
+        // specular
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.beginPath(); ctx.arc(p.x - rr * 0.32, p.y - rr * 0.42, rr * 0.2, 0, 7); ctx.fill();
+
+        // what the floor is doing to it
+        const ch = tileAt(Math.floor(b.x / TILE), Math.floor(b.y / TILE));
+        if (ch === 'G' && sp > 10) {
+          for (let i = 0; i < 4; i++) {
+            const a = now * 4 + i * 1.57;
+            const q = project(b.x + Math.cos(a) * 13, b.y + Math.sin(a) * 13, 1);
+            line(ctx, q, project(b.x + Math.cos(a) * 9, b.y + Math.sin(a) * 9, 1),
+              `rgba(${MAT.goo},0.35)`, 1.4, 4);
+          }
+        }
+        if (ch === 'I' && sp > 120) {
+          const back = project(b.x - b.vx * 0.05, b.y - b.vy * 0.05, 0.8);
+          line(ctx, back, shp, `rgba(${MAT.ice},0.35)`, 1.6, 8);
+        }
       }
     });
   });
 
   items.sort((a, b) => b.d - a.d).forEach(it => it.draw());
 }
+
+/* =====================================================================
+   THE TWO FACES — ambient layer around the busts
+   ---------------------------------------------------------------------
+   The dead black space either side of the tray is where the encounter lives:
+   a glow that belongs to the faction, motes of thought drifting up, and a
+   line of light running toward the maze while the master is working.
+   ===================================================================== */
+const fx = { mood: 'meet', link: 0, motes: [] };
+
+function sizeFx() {
+  [whoFx, meFx].forEach(cv => {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = cv.clientWidth || 260, h = cv.clientHeight || 400;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    cv._w = w; cv._h = h; cv._dpr = dpr;
+  });
+}
+
+function drawFace(cv, side) {
+  if (!cv._w) return;
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(cv._dpr, 0, 0, cv._dpr, 0, 0);
+  ctx.clearRect(0, 0, cv._w, cv._h);
+
+  const npc = side === 'who';
+  const tint = npc && currentNPC ? FACTION_RGB[currentNPC.faction] : '255,210,63';
+  const heat = { meet: 0.25, think: 0.6, land: 1, lost: 0.18 }[fx.mood] || 0.3;
+  const cx = cv._w / 2, cy = cv._h * 0.42;
+
+  // the glow that says someone is here
+  const g = ctx.createRadialGradient(cx, cy, 10, cx, cy, cv._w * 0.62);
+  const pulse = 0.85 + 0.15 * Math.sin(now * (fx.mood === 'land' ? 5 : 1.4));
+  g.addColorStop(0, `rgba(${tint},${(0.16 * heat * pulse).toFixed(3)})`);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, cv._w, cv._h);
+
+  // motes of thought — density and speed follow the beat we are in
+  const count = Math.round(6 + heat * 16);
+  for (let i = 0; i < count; i++) {
+    const seed = i * 12.9898 + (npc ? 3.7 : 0);
+    const rnd = (s) => (Math.sin(s) * 43758.5453) % 1;
+    const sx = cx + (Math.abs(rnd(seed)) - 0.5) * cv._w * 0.8;
+    const speed = 12 + Math.abs(rnd(seed + 1)) * 26 * (0.5 + heat);
+    const y = cv._h * 0.9 - ((now * speed + Math.abs(rnd(seed + 2)) * 400) % (cv._h * 0.75));
+    const a = clamp((1 - (cv._h * 0.9 - y) / (cv._h * 0.75)), 0, 1) * heat * 0.7;
+    const r = 1 + Math.abs(rnd(seed + 3)) * 1.8;
+    ctx.fillStyle = `rgba(${tint},${a.toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(sx + Math.sin(now * 1.3 + i) * 6, y, r, 0, 7); ctx.fill();
+  }
+
+  // the line of thought running toward the maze
+  if (fx.link > 0.01) {
+    const edgeX = npc ? 0 : cv._w;
+    const dir = npc ? -1 : 1;
+    for (let i = 0; i < 7; i++) {
+      const t = ((now * 0.8 + i / 7) % 1);
+      const x = cx + (edgeX - cx) * t * dir * (npc ? 1 : 1);
+      const px = npc ? cx - (cx - edgeX) * t : cx + (edgeX - cx) * t;
+      const a = fx.link * (1 - Math.abs(t - 0.5) * 1.4) * 0.8;
+      ctx.fillStyle = `rgba(${tint},${Math.max(0, a).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(px, cy + Math.sin(t * 6 + now * 2) * 8, 2.4, 0, 7); ctx.fill();
+    }
+  }
+}
+const FACTION_RGB = {
+  professor: '63,230,224', religion: '255,207,86', merchant: '255,140,66',
+  ai: '185,139,255', netizen: '255,46,136', military: '143,174,90', awakened: '95,124,255'
+};
 
 function updateClock() {
   const f = field;
@@ -726,9 +942,17 @@ function updateClock() {
 }
 
 let lastT = 0, acc = 0;
-function loop(now) {
+function loop(ms) {
   requestAnimationFrame(loop);
-  const dt = Math.min(0.05, (now - lastT) / 1000 || 0); lastT = now;
+  const dt = Math.min(0.05, (ms - lastT) / 1000 || 0); lastT = ms;
+  now = ms / 1000;
+
+  // the thought-line brightens while the master is actually working
+  const target = (field && field.running) ? 1 : 0;
+  fx.link += (target - fx.link) * Math.min(1, dt * 3);
+
+  if (mode === 'story') { drawFace(whoFx, 'who'); drawFace(meFx, 'me'); }
+
   if (!field) return;
   if (field.running) {
     acc += dt;
@@ -785,48 +1009,65 @@ document.addEventListener('visibilitychange', () => {
 /* =====================================================================
    4. STORY FLOW
    ===================================================================== */
+/* Both people stay on screen for the whole encounter, at bust size, breathing.
+   The maze is something happening BETWEEN them — never a mini-game that
+   replaced them. */
+function bustCell() {
+  const h = whoPane.clientHeight || 420;
+  return clamp(Math.floor((h * 0.52) / PORT.H), 2, 5);
+}
+
 function beginEncounter() {
   mode = 'story';
-  scoreLabel.textContent = '影響力指數（協會認證）';
+  scoreLabel.textContent = '影響力指數';
   factionCard.style.display = ''; newsCard.style.display = '';
-  arenaWrap.classList.remove('on');
-  stage.classList.remove('tucked', 'gone');
+  showField(false);
   clockLabel.textContent = '頓悟窗口';
   clockFill.style.width = '0%';
   clockRight.textContent = '— —';
-  footerHint.textContent = '按住方向鍵讓場地持續傾斜，放開後會慢慢回正。';
+  footerHint.textContent = '按住方向鍵持續傾斜，放開後場地回正';
 
   currentNPC = { faction: pick(FACTIONS) };
   currentNPC.name = pick(NPC_NAMES[currentNPC.faction]);
   currentNPC.question = pick(NPC_QUESTIONS[currentNPC.faction]);
 
-  stageHint.textContent = '走在街上，遇見了……';
-  npcTok.style.opacity = 0; bubble.style.opacity = 0;
-  playerTok.style.left = '5%';
-  drawPlayer(playerTok, 'neutral', STREET_CELL);
-  drawNPC(npcTok, currentNPC.faction, STREET_CELL);
-  npcTok.style.left = '55%';
-  setTimeout(() => { playerTok.style.left = '38%'; setTimeout(showEncounter, 1000); }, 200);
+  $('heroRow').classList.remove('solo');
+  mePane.classList.add('on');
+  setPortrait(playerTok, 'player', 'neutral', bustCell());
+  meState.textContent = '觀測中';
+  fx.mood = 'meet'; fx.link = 0;
+
+  whoPane.classList.remove('on');
+  whoName.textContent = currentNPC.name;
+  bubbleTag.textContent = META[currentNPC.faction].label;
+  bubbleTag.style.color = `var(${META[currentNPC.faction].varc})`;
+  bubbleText.textContent = '';
+  whoState.textContent = '';
+  setPortrait(npcTok, currentNPC.faction, 'neutral', bustCell());
+  arenaCap.textContent = '街上。有人叫住了你。';
+  setTimeout(showEncounter, 700);
 }
 
 function showEncounter() {
-  npcTok.style.opacity = 1;
-  bubbleTag.textContent = META[currentNPC.faction].label;
-  bubbleTag.style.color = `var(${META[currentNPC.faction].varc})`;
-  bubbleText.textContent = currentNPC.question;
-  bubble.style.opacity = 1;
-  stageHint.textContent = currentNPC.name + ' 向你搭話了……';
-  setTimeout(openField, 1700);
+  whoPane.classList.add('on');
+  bubbleText.textContent = '「' + currentNPC.question + '」';
+  whoState.textContent = '等待中';
+  setPortrait(npcTok, currentNPC.faction, 'up', bustCell());
+  setTimeout(openField, 1800);
 }
 
-/* The field is not a menu the player opens — it is what the street turns into
-   the moment the master starts thinking about the question. */
+/* The field is not a menu the player opens — it is what the moment turns into
+   once the master starts thinking about the question. */
 function openField() {
-  bubble.style.opacity = 0;
-  stage.classList.add('tucked');
-  stageHint.textContent = '（你沒有回答。你只是——想了一下。）';
+  meState.textContent = '思考中';
+  whoState.textContent = '注視著你';
+  setPortrait(playerTok, 'player', 'think', bustCell());
+  setPortrait(npcTok, currentNPC.faction, 'think', bustCell());
+  fx.mood = 'think';
+
   const def = STORY_LEVELS[storyIndex % STORY_LEVELS.length];
   loadLevel(def, storyWin, storyFail);
+  showField(true);
   setTimeout(() => {
     field.running = true;
     setInputEnabled(true);
@@ -839,7 +1080,10 @@ function storyWin() {
   const stats = { secs: field.elapsed, tilts: field.tilts, left: field.timeLeft };
   storyIndex++;
   arenaCap.textContent = '……落定了。';
-  setTimeout(() => { arenaWrap.classList.remove('on'); stage.classList.remove('tucked'); runInsightTheater(stats); }, 700);
+  fx.mood = 'land';
+  setPortrait(npcTok, currentNPC.faction, 'realize', bustCell());
+  whoState.textContent = '有什麼接上了';
+  setTimeout(() => { showField(false); runInsightTheater(stats); }, 900);
 }
 
 function storyFail() {
@@ -848,7 +1092,18 @@ function storyFail() {
   storyIndex++;   // no retry: the moment has passed, the master moves on
   arenaCap.classList.add('warn');
   arenaCap.textContent = '窗口關閉了。';
-  setTimeout(() => { arenaWrap.classList.remove('on'); stage.classList.remove('tucked'); runFlatteryTheater(stats); }, 900);
+  fx.mood = 'lost';
+  setPortrait(npcTok, currentNPC.faction, 'awe', bustCell());
+  whoState.textContent = '沒有接上';
+  setTimeout(() => { showField(false); runFlatteryTheater(stats); }, 1100);
+}
+
+/** the tray fades in and out of the space between the two of them */
+function showField(on) {
+  arena.style.transition = 'opacity .45s ease';
+  arena.style.opacity = on ? 1 : 0;
+  arenaCap.style.opacity = on ? 1 : 0.5;
+  if (!on) arenaCap.classList.remove('warn');
 }
 
 /* ---------- the record ---------- */
@@ -984,13 +1239,9 @@ function runFlatteryTheater(stats) {
 }
 
 function afterEncounter() {
-  bubble.style.opacity = 0;
-  playerTok.style.left = '95%';
-  setTimeout(() => {
-    npcTok.style.opacity = 0;
-    day++;
-    beginEncounter();
-  }, 900);
+  whoPane.classList.remove('on');
+  fx.mood = 'meet';
+  setTimeout(() => { day++; beginEncounter(); }, 700);
 }
 
 continueBtn.addEventListener('click', () => {
@@ -1014,9 +1265,11 @@ function startEndless() {
   endless = { level: 0, score: 0, streak: 0, bestStreak: 0, totalTime: 0, cleared: 0 };
   scoreLabel.textContent = '分數';
   factionCard.style.display = 'none'; newsCard.style.display = 'none';
-  stage.classList.add('gone');
+  whoPane.classList.remove('on'); mePane.classList.remove('on');
+  $('heroRow').classList.add('solo');
+  showField(true);
   clockLabel.textContent = '無限模式';
-  footerHint.textContent = '通關即進下一關。時間到就結束——分數會被記錄下來。';
+  footerHint.textContent = '通關即進下一關，時間到就結束';
   updateHUD();
   nextEndlessLevel();
 }
@@ -1133,17 +1386,21 @@ $('copyBtn').addEventListener('click', async () => {
 /* =====================================================================
    BOOT
    ===================================================================== */
-$('storyBtn').addEventListener('click', () => { startScreen.classList.add('gone'); beginEncounter(); });
-$('endlessBtn').addEventListener('click', () => { startScreen.classList.add('gone'); startEndless(); });
+$('storyBtn').addEventListener('click', () => {
+  startScreen.classList.add('gone'); sizeFx(); beginEncounter();
+});
+$('endlessBtn').addEventListener('click', () => {
+  startScreen.classList.add('gone'); sizeFx(); startEndless();
+});
 
 /* prototype-only handle: lets a headless/hidden page be stepped by hand, and
    lets you poke at the tuning constants from the console without a rebuild */
 window.__tilt = {
   get field() { return field; }, held, stepPhysics, drawField, updateClock,
-  loadLevel, genLevel, STORY_LEVELS, startEndless, beginEncounter
+  loadLevel, genLevel, STORY_LEVELS, startEndless, beginEncounter, fx, cam, CAM
 };
 
 renderFactionPanel();
 updateHUD();
-drawPlayer(playerTok, 'neutral', STREET_CELL);
+sizeFx();
 pushNews('協會宣布啟用「思想重力場」觀測程序，細節不予說明。');

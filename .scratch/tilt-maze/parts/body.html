@@ -1,71 +1,81 @@
   <div id="app">
 
-    <header>
-      <div>
+    <!-- 20% — standing information. Deliberately quiet: it reports, it never
+         competes with the thing the player is actually doing. -->
+    <header class="hud-top">
+      <div class="hud-id">
         <h1>思想重力場</h1>
-        <div class="subtitle">TILT MAZE · 大師觀測終端 · 傾斜實驗艙</div>
+        <div class="subtitle">TILT MAZE · 大師觀測終端</div>
+      </div>
+      <div class="hud-clock">
+        <div class="doom-label"><span id="clockLabel">頓悟窗口</span><span id="clockRight">— —</span></div>
+        <div class="doom-track">
+          <div class="doom-fill" id="clockFill"></div>
+        </div>
       </div>
       <div class="influence-box">
-        <div class="label" id="scoreLabel">影響力指數（協會認證）</div>
+        <div class="label" id="scoreLabel">影響力指數</div>
         <div class="num" id="influenceNum">0</div>
       </div>
     </header>
 
-    <!-- The countdown reuses the doomsday rail: in this scene it is the window
-         of time in which the subject is still capable of understanding. -->
-    <div class="doom-wrap">
-      <div class="doom-label"><span id="clockLabel">頓悟窗口</span><span id="clockRight">— —</span></div>
-      <div class="doom-track">
-        <div class="doom-fill" id="clockFill"></div>
-      </div>
-    </div>
+    <!-- 70% — the act itself. On a 1080p screen this is everything between the
+         thin top bar and the thin bottom strip. -->
+    <main class="hero" id="heroRow">
 
-    <main>
-      <!-- The street stage and the gravity field occupy the same slot: the field
-           is what the street becomes once the master starts thinking. -->
-      <div class="stage" id="stage">
-        <div class="stage-hint" id="stageHint">走在街上，遇見了……</div>
-        <canvas id="npcTok" class="token"></canvas>
-        <div id="bubble" class="bubble"><span class="tag" id="bubbleTag">教授派</span><br><span id="bubbleText"></span>
-        </div>
-        <canvas id="playerTok" class="token"></canvas>
-        <div class="road"></div>
-      </div>
+      <!-- who this is happening to. Stays on screen during play, reacting, so
+           the maze never reads as a detached mini-game. -->
+      <aside class="who" id="whoPane">
+        <canvas id="whoFx" class="who-fx"></canvas>
+        <canvas id="npcTok" class="who-bust"></canvas>
+        <div class="who-name" id="whoName">&nbsp;</div>
+        <div class="who-tag" id="bubbleTag">教授派</div>
+        <div class="who-say" id="bubbleText"></div>
+        <div class="who-state" id="whoState"></div>
+      </aside>
 
-      <div class="arena-wrap" id="arenaWrap">
+      <section class="field">
         <div class="arena-board" id="arenaBoard">
           <canvas id="arena"></canvas>
         </div>
         <div class="arena-cap" id="arenaCap"></div>
-      </div>
+      </section>
 
-      <div class="dpad-wrap">
-        <div class="dpad">
-          <button id="dUp" disabled title="場地北傾">⬆️<span class="dk">北傾</span></button>
-          <button id="dLeft" disabled title="場地西傾">⬅️<span class="dk">西傾</span></button>
-          <div id="dCenter">重<br>力</div>
-          <button id="dRight" disabled title="場地東傾">➡️<span class="dk">東傾</span></button>
-          <button id="dDown" disabled title="場地南傾">⬇️<span class="dk">南傾</span></button>
-        </div>
-      </div>
-
-      <div class="footer-hint" id="footerHint">按住方向鍵讓場地持續傾斜，放開後會慢慢回正。</div>
+      <!-- the master's own side of the performance -->
+      <aside class="me" id="mePane">
+        <canvas id="meFx" class="who-fx"></canvas>
+        <canvas id="playerTok" class="who-bust"></canvas>
+        <div class="who-name">大師</div>
+        <div class="who-state" id="meState">觀測中</div>
+      </aside>
     </main>
 
-    <div class="panel-card" id="factionCard">
-      <div class="pc-head"><span class="term-title">各學派信任度</span></div>
-      <div class="factions" id="factionsPanel"></div>
+    <div class="hud-pad">
+      <div class="dpad">
+        <button id="dUp" disabled title="北傾">▲</button>
+        <button id="dLeft" disabled title="西傾">◀</button>
+        <div id="dCenter">傾斜</div>
+        <button id="dRight" disabled title="東傾">▶</button>
+        <button id="dDown" disabled title="南傾">▼</button>
+      </div>
+      <div class="footer-hint" id="footerHint">按住方向鍵持續傾斜，放開後場地回正</div>
     </div>
 
-    <div class="panel-card" id="newsCard">
-      <div class="pc-head"><span class="ticker-live"></span><span class="term-title">協會新聞線</span></div>
-      <div class="news-list" id="newsList"></div>
-    </div>
-
-    <div class="ticker-wrap">
-      <div class="ticker-label"><span class="ticker-live"></span>協會新聞線</div>
-      <div class="ticker-track" id="tickerTrack">世界正在等待大師傾斜第一次……</div>
-    </div>
+    <!-- 10% — the world reacting. Low contrast on purpose. -->
+    <footer class="hud-bottom">
+      <div class="panel-card" id="factionCard">
+        <div class="pc-head"><span class="term-title">各學派信任度</span></div>
+        <div class="factions" id="factionsPanel"></div>
+      </div>
+      <div class="panel-card" id="newsCard">
+        <div class="pc-head"><span class="ticker-live"></span><span class="term-title">協會新聞線</span></div>
+        <div class="news-list" id="newsList"></div>
+      </div>
+      <div class="ticker-wrap">
+        <div class="ticker-label"><span class="ticker-live"></span>協會新聞線</div>
+        <div class="ticker-track" id="tickerTrack">世界正在等待大師傾斜第一次……</div>
+      </div>
+    </footer>
 
   </div>
 

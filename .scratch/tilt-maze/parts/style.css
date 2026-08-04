@@ -1,37 +1,229 @@
-/* ---------- THE FIELD ----------
-   The tray, its walls and the tilt all live inside the canvas as real 3D — see
-   the projection in game.js. Nothing about the tilt is written down as a number
-   anywhere on screen: you read it off the tray and off the ball's shadow. */
-.arena-wrap {
-  display: none;
-  padding: 6px 0 2px;
-  margin-bottom: 10px;
-}
-
-.arena-wrap.on {
+/* =====================================================================
+   LAYOUT — built for 1920x1080, degrading to narrow screens
+   ---------------------------------------------------------------------
+   70 / 20 / 10, enforced by area and by contrast:
+     70%  the act — the tray, the ball, the two people it happens between
+     20%  standing information — thin top bar, thin bottom strip
+     10%  atmosphere — ticker, vignette, glow
+   The chrome below is deliberately desaturated so that the only saturated,
+   fully-lit things on screen are the ball, the holes and the faces.
+   ===================================================================== */
+body {
+  padding: 0;
   display: block;
+  background:
+    radial-gradient(ellipse at 50% 34%, rgba(70, 130, 175, 0.10), transparent 62%),
+    radial-gradient(ellipse at 50% 120%, rgba(126, 240, 168, 0.05), transparent 55%),
+    #04070a;
 }
 
-/* the depth is projected inside the canvas, so the element itself stays flat —
-   only the glow bleeds out of it */
+/* the CRT layer stays, but far weaker — it was competing with the board */
+body::after {
+  background:
+    repeating-linear-gradient(0deg, rgba(150, 200, 230, 0.018) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at 50% 50%, transparent 58%, rgba(0, 0, 0, 0.72) 100%);
+}
+
+#app {
+  max-width: none;
+  width: 100%;
+  height: 100vh;
+  padding: 14px 26px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------- 20%: top bar ---------- */
+.hud-top {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 2fr) minmax(220px, 1fr);
+  align-items: center;
+  gap: 26px;
+  flex: 0 0 auto;
+  opacity: 0.82;
+}
+
+.hud-top h1 {
+  font-size: calc(19px * var(--fs));
+  letter-spacing: 5px;
+  color: #9fd8c2;
+  text-shadow: 0 0 10px rgba(126, 240, 168, 0.25);
+}
+
+.hud-top .subtitle {
+  font-size: calc(10px * var(--fs));
+  letter-spacing: 4px;
+  color: #4d7d67;
+}
+
+.hud-clock .doom-label {
+  font-size: calc(10px * var(--fs));
+  letter-spacing: 2px;
+  color: #4d7d67;
+}
+
+.hud-clock .doom-track {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+}
+
+.doom-fill {
+  transition: width .1s linear;
+  background: linear-gradient(90deg, #ff5f56, #ff8c42);
+}
+
+.doom-fill.calm {
+  background: linear-gradient(90deg, rgba(150, 205, 240, 0.75), rgba(126, 240, 168, 0.6));
+}
+
+.influence-box {
+  justify-self: end;
+}
+
+.influence-box .label {
+  font-size: calc(10px * var(--fs));
+  letter-spacing: 3px;
+  color: #4d7d67;
+}
+
+.influence-box .num {
+  font-size: calc(26px * var(--fs));
+  color: #e7c66a;
+  text-shadow: 0 0 14px rgba(255, 210, 63, 0.35);
+}
+
+/* ---------- 70%: the act ---------- */
+.hero {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 260px;
+  align-items: center;
+  gap: 20px;
+}
+
+/* endless mode has no one to convince: the tray takes the whole width */
+.hero.solo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.hero.solo .who,
+.hero.solo .me {
+  display: none;
+}
+
+.who,
+.me {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  opacity: 0;
+  transition: opacity .5s ease;
+}
+
+.who.on,
+.me.on {
+  opacity: 1;
+}
+
+/* the ambient layer: glow, thought motes, the line between the two of them */
+.who-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* the busts inherit id rules from the ported street-stage sheet (#npcTok used
+   to be an absolutely-positioned token that started invisible) — reset those */
+#playerTok,
+#npcTok {
+  opacity: 1;
+  left: auto;
+  bottom: auto;
+  z-index: auto;
+  animation: none;
+  transform: none;
+}
+
+.who-bust {
+  position: relative;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.8));
+  transition: transform .5s cubic-bezier(.2, .8, .3, 1), opacity .5s;
+}
+
+.who-name {
+  position: relative;
+  font-family: var(--mono);
+  font-size: calc(14px * var(--fs));
+  letter-spacing: 2px;
+  color: #cfe6da;
+  margin-top: 12px;
+}
+
+.who-tag {
+  position: relative;
+  font-family: var(--mono);
+  font-size: calc(11px * var(--fs));
+  letter-spacing: 2px;
+  margin-top: 4px;
+}
+
+.who-say {
+  position: relative;
+  font-size: calc(13px * var(--fs));
+  line-height: 1.8;
+  color: #9db9ad;
+  margin-top: 10px;
+  max-width: 230px;
+  min-height: 3.4em;
+}
+
+.who-state {
+  position: relative;
+  font-family: var(--mono);
+  font-size: calc(11px * var(--fs));
+  letter-spacing: 3px;
+  color: #4d7d67;
+  margin-top: 8px;
+  min-height: 1.4em;
+}
+
+.field {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 .arena-board {
+  position: relative;
   display: flex;
   justify-content: center;
-  background: radial-gradient(ellipse at 50% 55%, rgba(80, 150, 200, 0.10), transparent 70%);
+  align-items: center;
 }
 
 .arena-board canvas {
   display: block;
-  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.85));
 }
 
 .arena-cap {
-  text-align: center;
   font-family: var(--mono);
   font-size: calc(12px * var(--fs));
-  color: var(--text-dim);
-  letter-spacing: 1px;
-  margin-top: 10px;
+  letter-spacing: 3px;
+  color: #5f8f7a;
   min-height: 1.4em;
 }
 
@@ -39,19 +231,193 @@
   color: var(--danger);
 }
 
-/* the stage collapses out of the way once the field opens, so the two never
-   fight for the same vertical space on a phone */
-.stage.tucked {
-  height: 92px;
+/* ---------- the control: small, quiet, always in the same place ---------- */
+.hud-pad {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 
-.stage.gone {
-  display: none;
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 34px);
+  grid-template-rows: repeat(3, 34px);
+  gap: 3px;
+  margin: 0;
 }
 
-/* ---------- COUNTDOWN ---------- */
-.doom-fill.calm {
-  background: linear-gradient(90deg, var(--term-fg), var(--cyan));
+.dpad button {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #4d7d67;
+  border: 1px solid rgba(126, 240, 168, 0.18);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color .12s, border-color .12s, background .12s;
+}
+
+.dpad button:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.dpad button:not(:disabled):hover {
+  color: #9fd8c2;
+  border-color: rgba(126, 240, 168, 0.4);
+}
+
+.dpad button.held {
+  color: #04070a;
+  background: #7ef0a8;
+  border-color: #7ef0a8;
+  box-shadow: 0 0 14px rgba(126, 240, 168, 0.5);
+}
+
+#dUp {
+  grid-area: 1/2;
+}
+
+#dLeft {
+  grid-area: 2/1;
+}
+
+#dCenter {
+  grid-area: 2/2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #2f5546;
+}
+
+#dRight {
+  grid-area: 2/3;
+}
+
+#dDown {
+  grid-area: 3/2;
+}
+
+.footer-hint {
+  font-size: calc(10px * var(--fs));
+  letter-spacing: 2px;
+  color: #3d6555;
+}
+
+/* ---------- 10%: the world reacting ---------- */
+.hud-bottom {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(340px, 1.6fr);
+  grid-template-rows: auto auto;
+  gap: 8px 16px;
+  opacity: 0.62;
+  transition: opacity .3s;
+}
+
+.hud-bottom:hover {
+  opacity: 0.95;
+}
+
+.hud-bottom .panel-card {
+  background: rgba(11, 20, 16, 0.6);
+  border-color: rgba(30, 59, 44, 0.7);
+  margin: 0;
+}
+
+.hud-bottom .ticker-wrap {
+  grid-column: 1 / -1;
+  height: 24px;
+  margin: 0;
+  border-color: rgba(30, 59, 44, 0.7);
+}
+
+.ticker-label {
+  background: #2a4d3c;
+  color: #9fd8c2;
+}
+
+.ticker-track {
+  color: #7fae95;
+  font-size: calc(12px * var(--fs));
+}
+
+.news-list {
+  max-height: 96px;
+}
+
+.news-item {
+  font-size: calc(12px * var(--fs));
+  padding: 4px 0;
+}
+
+.news-item:first-child {
+  color: #cbb26a;
+}
+
+.faction .pct,
+.faction .name {
+  font-size: calc(11px * var(--fs));
+}
+
+.pc-head {
+  padding: 4px 10px;
+}
+
+.term-title {
+  font-size: calc(11px * var(--fs));
+  color: #6fae8d;
+  text-shadow: none;
+}
+
+/* ---------- narrow screens: one column, board still the hero ---------- */
+@media (max-width: 1279px) {
+  #app {
+    height: auto;
+    min-height: 100vh;
+    padding: 10px 12px;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .who,
+  .me {
+    height: auto;
+    flex-direction: row;
+    gap: 12px;
+    text-align: left;
+  }
+
+  .me {
+    display: none;
+  }
+
+  .who-say {
+    max-width: none;
+  }
+
+  .hud-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .hud-top {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hud-clock {
+    grid-column: 1 / -1;
+    order: 3;
+  }
 }
 
 /* ---------- GAME OVER REPORT (arcade) ---------- */
@@ -141,7 +507,7 @@
 #startScreen {
   position: fixed;
   inset: 0;
-  background: var(--bg-void);
+  background: #04070a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -155,9 +521,9 @@
 
 .start-inner {
   text-align: center;
-  border: 3px solid var(--border);
-  background: var(--bg-panel);
-  padding: 26px 20px;
+  border: 1px solid rgba(126, 240, 168, 0.2);
+  background: rgba(11, 20, 16, 0.7);
+  padding: 34px 30px;
   max-width: 420px;
   width: 100%;
 }
@@ -165,17 +531,17 @@
 .start-title {
   font-family: var(--mono);
   font-size: calc(30px * var(--fs));
-  letter-spacing: 8px;
-  color: var(--term-fg);
-  text-shadow: var(--glow), 0 0 26px rgba(126, 240, 168, 0.35);
+  letter-spacing: 10px;
+  color: #d8ffe8;
+  text-shadow: 0 0 26px rgba(126, 240, 168, 0.35);
 }
 
 .start-sub {
   font-family: var(--mono);
   font-size: calc(11px * var(--fs));
-  letter-spacing: 2px;
-  color: var(--text-dim);
-  margin: 8px 0 22px;
+  letter-spacing: 3px;
+  color: #4d7d67;
+  margin: 10px 0 26px;
 }
 
 .start-inner button {
@@ -187,15 +553,8 @@
 
 .start-note {
   font-family: var(--mono);
-  font-size: calc(12px * var(--fs));
-  color: var(--text-dim);
-  line-height: 1.8;
-  margin-top: 18px;
-}
-
-/* the d-pad is a held control here, so it needs a pressed state */
-.dpad button.held {
-  color: var(--gold);
-  border-color: var(--gold);
-  box-shadow: 0 0 10px rgba(255, 210, 63, 0.5) inset;
+  font-size: calc(11px * var(--fs));
+  color: #4d7d67;
+  line-height: 2;
+  margin-top: 20px;
 }
