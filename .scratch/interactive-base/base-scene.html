@@ -64,7 +64,7 @@
    0 · 常數與工具
    ══════════════════════════════════════════════════════════════════ */
 /* 版本戳記：file:// 的快取很黏，看不到這串更新就是拿到舊檔，按 Ctrl+F5 強制重載 */
-const BUILD = 'N3-foot-0804b';
+const BUILD = 'N3-foot-0804c';
 const VW = 480, VH = 270;          // 虛擬解析度（1920×1080 = 整數 4 倍）
 const TS = 16;                     // 圖塊邊長
 const MOD = 20;                    // 一塊地基模組 = 20×20 圖塊
@@ -1019,6 +1019,27 @@ function softShadow(w, h, peak) {
 const SHADOW = softShadow(16, 7, 0.50);        // 角色
 const CONTACT = softShadow(30, 10, 0.58);      // 建築接地
 
+/* 鷹架：施工時依建築的實際尺寸現畫。
+   立柱固定 2px 寬、橫桿依高度均分，所以不管建築是 31px 還是 108px 寬，
+   桿件的粗細都一樣——拉伸一張固定圖做不到這件事。 */
+function drawScaffold(x, y, w, h) {
+  const DARK = '#5e4423', MID = '#8a6a3c', LIT = '#a8834c';
+  const pw = 2;
+  for (const px_ of [x, x + w - pw]) {          // 兩側立柱
+    rc(W, px_, y, pw, h, MID);
+    rc(W, px_, y, 1, h, LIT);
+  }
+  const rows = Math.max(2, Math.round(h / 15));  // 橫桿：依高度均分，間距不會失控
+  const gap = h / rows;
+  for (let i = 1; i < rows; i++) {
+    const yy = Math.round(y + gap * i);
+    rc(W, x, yy, w, 2, MID);
+    rc(W, x, yy, w, 1, LIT);
+  }
+  rc(W, x - 1, y, w + 2, 2, LIT);                // 頂欄
+  rc(W, x - 1, y + 2, w + 2, 1, DARK);
+}
+
 /* ══════════════════════════════════════════════════════════════════
    5 · 佈景道具
    ══════════════════════════════════════════════════════════════════ */
@@ -1117,14 +1138,8 @@ function bakeProps() {
     }
     outline(g, 16, 10, '#0b0910');
   });
-  PROP.scaffold = bake(34, 40, g => {
-    ['#8a6a3c', '#a8834c'].forEach((c, i) => {
-      rc(g, 2 + i, 6, 2, 32, c); rc(g, 30 - i, 6, 2, 32, c);
-    });
-    rc(g, 2, 14, 30, 2, '#8a6a3c'); rc(g, 2, 26, 30, 2, '#8a6a3c');
-    rc(g, 0, 5, 34, 2, '#a8834c');
-    outline(g, 34, 40, P.out);
-  });
+  /* 鷹架不烘成固定圖：建築尺寸從 31px 到 108px 都有，
+     拉伸一張 34×40 的圖會把立柱拉肥、高度也算錯。改成施工時依實際尺寸現畫。 */
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1810,8 +1825,8 @@ function draw() {
         const hh = Math.max(3, Math.round(img.height * Math.max(.12, b.prog)));
         W.drawImage(img, 0, img.height - hh, img.width, hh, ix, sy + TS * bf.h - hh + 2, img.width, hh);
         W.globalAlpha = .85;
-        const scW = TS * bf.w, scH = Math.round(PROP.scaffold.height * scW / PROP.scaffold.width);
-        W.drawImage(PROP.scaffold, sx, sy + TS * bf.h - scH + 2, scW, scH);
+        const scW = img.width + 6, scH = img.height + 4;
+        drawScaffold(Math.round(ix - 3), Math.round(sy + TS * bf.h - scH + 2), scW, scH);
         W.globalAlpha = 1;
       } else {
         const iy = sy + TS * bf.h - img.height + 2;
