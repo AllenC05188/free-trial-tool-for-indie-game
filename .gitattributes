@@ -1,0 +1,8 @@
+# 工作目錄統一用 LF，避免每次存檔都因為換行符產生假差異
+* text=auto eol=lf
+
+# 二進位：不做換行轉換，也不要在 diff 裡展開
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.mp3 binary
