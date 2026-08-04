@@ -1,0 +1,201 @@
+/* ---------- THE FIELD ----------
+   The tray, its walls and the tilt all live inside the canvas as real 3D — see
+   the projection in game.js. Nothing about the tilt is written down as a number
+   anywhere on screen: you read it off the tray and off the ball's shadow. */
+.arena-wrap {
+  display: none;
+  padding: 6px 0 2px;
+  margin-bottom: 10px;
+}
+
+.arena-wrap.on {
+  display: block;
+}
+
+/* the depth is projected inside the canvas, so the element itself stays flat —
+   only the glow bleeds out of it */
+.arena-board {
+  display: flex;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 55%, rgba(80, 150, 200, 0.10), transparent 70%);
+}
+
+.arena-board canvas {
+  display: block;
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.85));
+}
+
+.arena-cap {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: calc(12px * var(--fs));
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  margin-top: 10px;
+  min-height: 1.4em;
+}
+
+.arena-cap.warn {
+  color: var(--danger);
+}
+
+/* the stage collapses out of the way once the field opens, so the two never
+   fight for the same vertical space on a phone */
+.stage.tucked {
+  height: 92px;
+}
+
+.stage.gone {
+  display: none;
+}
+
+/* ---------- COUNTDOWN ---------- */
+.doom-fill.calm {
+  background: linear-gradient(90deg, var(--term-fg), var(--cyan));
+}
+
+/* ---------- GAME OVER REPORT (arcade) ---------- */
+#reportOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 8, 5, 0.94);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 120;
+  padding: 14px;
+}
+
+#reportOverlay.active {
+  display: flex;
+}
+
+.report {
+  width: 100%;
+  max-width: 460px;
+  background: var(--bg-panel);
+  border: 3px solid var(--border);
+  padding: 14px;
+  text-align: center;
+  animation: zoomin .28s ease-out forwards;
+}
+
+.report-head {
+  font-family: var(--mono);
+  font-size: calc(26px * var(--fs));
+  letter-spacing: 6px;
+  color: var(--danger);
+  text-shadow: 0 0 14px rgba(255, 95, 86, 0.6);
+  margin-bottom: 10px;
+}
+
+#reportCard {
+  width: 100%;
+  height: auto;
+  border: 2px solid var(--border);
+  background: #000;
+}
+
+.report-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.report-btns button,
+.start-inner button {
+  font-family: var(--mono);
+  font-size: calc(14px * var(--fs));
+  letter-spacing: 1px;
+  padding: 9px 14px;
+  background: none;
+  color: var(--text-dim);
+  border: 2px solid var(--border);
+  cursor: pointer;
+}
+
+.report-btns button:hover,
+.start-inner button:hover {
+  color: var(--term-fg);
+  border-color: var(--term-fg);
+  box-shadow: var(--glow);
+}
+
+.report-btns button.primary,
+.start-inner button.primary {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.report-note {
+  font-family: var(--mono);
+  font-size: calc(12px * var(--fs));
+  color: var(--text-dim);
+  margin-top: 8px;
+  min-height: 1.4em;
+}
+
+/* ---------- START ---------- */
+#startScreen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-void);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 140;
+  padding: 16px;
+}
+
+#startScreen.gone {
+  display: none;
+}
+
+.start-inner {
+  text-align: center;
+  border: 3px solid var(--border);
+  background: var(--bg-panel);
+  padding: 26px 20px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.start-title {
+  font-family: var(--mono);
+  font-size: calc(30px * var(--fs));
+  letter-spacing: 8px;
+  color: var(--term-fg);
+  text-shadow: var(--glow), 0 0 26px rgba(126, 240, 168, 0.35);
+}
+
+.start-sub {
+  font-family: var(--mono);
+  font-size: calc(11px * var(--fs));
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin: 8px 0 22px;
+}
+
+.start-inner button {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px;
+}
+
+.start-note {
+  font-family: var(--mono);
+  font-size: calc(12px * var(--fs));
+  color: var(--text-dim);
+  line-height: 1.8;
+  margin-top: 18px;
+}
+
+/* the d-pad is a held control here, so it needs a pressed state */
+.dpad button.held {
+  color: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(255, 210, 63, 0.5) inset;
+}

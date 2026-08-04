@@ -1,0 +1,3054 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tilt Maze · 思想重力場 原型</title>
+  <style>
+/* ===================================================================
+   PORTED FROM index.html — do not hand-edit here, edit the game and
+   re-run build.js. This is the shared visual identity.
+   =================================================================== */
+    :root {
+      /* every font-size in this sheet is multiplied by --fs, so the accessibility
+       setting scales the whole interface consistently */
+      --fs: 1;
+      /* Observation-terminal shell — see docs/visual-identity.md.
+       The chrome is a single phosphor channel; only *data* carries colour. */
+      --bg-void: #060a08;
+      --bg-panel: #0b1410;
+      --bg-panel-2: #12201a;
+      --border: #1e3b2c;
+      --text: #d8ffe8;
+      --text-dim: #5f9c78;
+      --term-fg: #7ef0a8;
+      --glow: 0 0 8px rgba(126, 240, 168, 0.45);
+      --gold: #ffd23f;
+      --cyan: #3fe6e0;
+      --religion: #ffcf56;
+      --merchant: #ff8c42;
+      --ai: #b98bff;
+      --netizen: #ff2e88;
+      --military: #8fae5a;
+      --awakened: #5f7cff;
+      --danger: #ff5f56;
+      --mono: ui-monospace, "SFMono-Regular", Consolas, "Courier New", monospace;
+      --sans: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", system-ui, -apple-system, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg-void);
+      color: var(--text);
+      font-family: var(--sans);
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      padding: 14px;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 50% -10%, rgba(126, 240, 168, 0.10), transparent 60%),
+        radial-gradient(ellipse at 50% 110%, rgba(63, 230, 224, 0.06), transparent 55%),
+        var(--bg-void);
+    }
+
+    /* The whole application sits behind one CRT layer — this is what binds every
+     screen into a single device rather than a set of menus. */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 200;
+      background:
+        repeating-linear-gradient(0deg, rgba(126, 240, 168, 0.045) 0 1px, transparent 1px 3px),
+        radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+    }
+
+    #app {
+      width: 100%;
+      max-width: 620px;
+    }
+
+    /* ---------- THREE-COLUMN LAYOUT ----------
+     Narrow screens stack; wide screens push standing information out to the
+     sides so the middle column is free to be the stage. */
+
+    .panel-card {
+      border: 2px solid var(--border);
+      background: var(--bg-panel);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-card.grow {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .pc-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel-2);
+      font-family: var(--mono);
+      font-size: calc(13px * var(--fs));
+      letter-spacing: 1px;
+      color: var(--term-fg);
+      text-shadow: var(--glow);
+    }
+
+    .pc-link {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      padding: 3px 7px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .pc-link:hover {
+      color: var(--gold);
+      border-color: var(--gold);
+    }
+
+    .pc-body {
+      padding: 9px 10px;
+    }
+
+    .panel-card .factions {
+      border: none;
+      margin: 0;
+      background: none;
+      padding: 8px;
+    }
+
+    .news-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 10px;
+      max-height: 280px;
+    }
+
+    .news-item {
+      font-size: calc(14px * var(--fs));
+      line-height: 1.6;
+      padding: 7px 0;
+      border-bottom: 1px dashed var(--border);
+      color: var(--text-dim);
+    }
+
+    .news-item:first-child {
+      color: var(--gold);
+    }
+
+    .news-item .nt {
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      color: var(--text-dim);
+      opacity: 0.7;
+      display: block;
+    }
+
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    h1 {
+      font-family: var(--mono);
+      font-size: calc(clamp(20px, 5vw, 28px) * var(--fs));
+      letter-spacing: 2px;
+      margin: 0;
+      color: var(--text);
+      color: var(--term-fg);
+      text-shadow: var(--glow), 0 0 22px rgba(126, 240, 168, 0.3);
+    }
+
+    .subtitle {
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      letter-spacing: 3px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .influence-box {
+      text-align: right;
+      font-family: var(--mono);
+    }
+
+    .influence-box .label {
+      font-size: calc(12px * var(--fs));
+      letter-spacing: 2px;
+      color: var(--text-dim);
+    }
+
+    .influence-box .num {
+      font-size: calc(clamp(22px, 6vw, 30px) * var(--fs));
+      color: var(--gold);
+      text-shadow: 0 0 12px rgba(255, 210, 63, 0.7);
+      font-weight: bold;
+      font-family: var(--mono);
+    }
+
+    .doom-wrap {
+      margin-bottom: 10px;
+      font-family: var(--mono);
+    }
+
+    .doom-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: calc(13px * var(--fs));
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .doom-track {
+      height: 14px;
+      background: #000;
+      border: 2px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .doom-fill {
+      height: 100%;
+      width: 0%;
+      background: repeating-linear-gradient(90deg, var(--danger) 0 8px, #a33b34 8px 16px);
+      transition: width .6s ease;
+    }
+
+    .factions {
+      display: grid;
+      grid-template-columns: repeat(var(--fcols, 5), 1fr);
+      gap: 6px;
+      background: var(--bg-panel);
+      border: 2px solid var(--border);
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+
+    .faction {
+      text-align: center;
+      font-family: var(--mono);
+    }
+
+    .faction .icon {
+      font-size: calc(16px * var(--fs));
+    }
+
+    .faction .name {
+      font-size: calc(12px * var(--fs));
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+      margin: 2px 0;
+    }
+
+    .faction .track {
+      height: 8px;
+      background: #000;
+      border: 1px solid var(--border);
+    }
+
+    .faction .fill {
+      height: 100%;
+      width: 0%;
+      transition: width .5s ease;
+    }
+
+    .faction .pct {
+      font-size: calc(12px * var(--fs));
+      margin-top: 2px;
+      color: var(--text-dim);
+    }
+
+    .faction .hint {
+      font-size: calc(12px * var(--fs));
+      color: var(--text-dim);
+      opacity: 0;
+      height: 0;
+      overflow: hidden;
+      transition: opacity .3s;
+    }
+
+    .factions.revealed .hint {
+      opacity: 0.85;
+      height: auto;
+      margin-top: 2px;
+    }
+
+
+    .stage {
+      position: relative;
+      height: 220px;
+      border: 3px solid var(--border);
+      overflow: hidden;
+      background: linear-gradient(to bottom, #07110c 0%, #07110c 58%, #0e1d16 58%, #0e1d16 100%);
+      margin-bottom: 10px;
+    }
+
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: #fff;
+      opacity: 0.6;
+      animation: twinkle 2.4s ease-in-out infinite;
+    }
+
+    @keyframes twinkle {
+
+      0%,
+      100% {
+        opacity: 0.15;
+      }
+
+      50% {
+        opacity: 0.9;
+      }
+    }
+
+    .building {
+      position: absolute;
+      bottom: 42%;
+      background: #0a1610;
+      border-top: 2px solid #172c20;
+    }
+
+    .road {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 42%;
+      background: #050b08;
+    }
+
+    .road::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: repeating-linear-gradient(90deg, #1e3b2c 0 18px, transparent 18px 34px);
+    }
+
+    .token {
+      position: absolute;
+      bottom: 14%;
+      transition: left 1s ease;
+      transform: translateX(-50%);
+      filter: drop-shadow(0 4px 2px rgba(0, 0, 0, 0.5));
+      animation: bob 1.8s ease-in-out infinite;
+    }
+
+    @keyframes bob {
+
+      0%,
+      100% {
+        transform: translateX(-50%) translateY(0);
+      }
+
+      50% {
+        transform: translateX(-50%) translateY(-3px);
+      }
+    }
+
+    #playerTok {
+      left: 5%;
+      z-index: 3;
+    }
+
+    #npcTok {
+      left: 55%;
+      opacity: 0;
+      z-index: 2;
+    }
+
+    .bubble {
+      position: absolute;
+      bottom: calc(14% + 108px);
+      left: 55%;
+      transform: translateX(-50%);
+      background: var(--bg-panel-2);
+      border: 2px solid var(--border);
+      padding: 8px 10px;
+      max-width: 78%;
+      font-size: calc(12px * var(--fs));
+      line-height: 1.6;
+      opacity: 0;
+      transition: opacity .3s;
+      z-index: 4;
+    }
+
+    .bubble .tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      padding: 1px 5px;
+      margin-bottom: 4px;
+      border: 1px solid currentColor;
+      letter-spacing: 1px;
+    }
+
+    .bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -9px;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: var(--border);
+    }
+
+    .stage-hint {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      color: var(--text-dim);
+      background: rgba(0, 0, 0, 0.35);
+      padding: 2px 6px;
+      z-index: 5;
+    }
+
+    .dpad-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .dpad {
+      display: grid;
+      grid-template-columns: 70px 70px 70px;
+      grid-template-rows: 70px 70px 70px;
+      gap: 5px;
+    }
+
+    .dpad button {
+      font-family: var(--mono);
+      font-size: calc(19px * var(--fs));
+      background: var(--bg-panel);
+      border: 2px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform .1s, background .2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      line-height: 1;
+    }
+
+    .dpad .dk {
+      font-size: calc(12px * var(--fs));
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
+
+    .dpad button:not(:disabled):hover .dk {
+      color: var(--gold);
+    }
+
+    .dpad button:active {
+      transform: scale(0.92);
+    }
+
+    .dpad button:disabled {
+      opacity: 0.25;
+      cursor: not-allowed;
+    }
+
+    .dpad button:not(:disabled):hover {
+      background: var(--bg-panel-2);
+      border-color: var(--gold);
+    }
+
+    #dUp {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    #dLeft {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    #dCenter {
+      grid-column: 2;
+      grid-row: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: calc(13px * var(--fs));
+      color: var(--text-dim);
+      border: none;
+      background: none;
+    }
+
+    #dRight {
+      grid-column: 3;
+      grid-row: 2;
+    }
+
+    #dDown {
+      grid-column: 2;
+      grid-row: 3;
+    }
+
+    .ticker-wrap {
+      border: 2px solid var(--border);
+      background: #000;
+      height: 26px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .ticker-label {
+      background: var(--netizen);
+      color: #000;
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      font-weight: bold;
+      padding: 0 8px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      letter-spacing: 1px;
+      z-index: 2;
+    }
+
+    .ticker-track {
+      white-space: nowrap;
+      font-family: var(--mono);
+      font-size: calc(13px * var(--fs));
+      color: var(--gold);
+      padding-left: 100%;
+    }
+
+    @keyframes scroll {
+      from {
+        transform: translateX(0);
+      }
+
+      to {
+        transform: translateX(-100%);
+      }
+    }
+
+    .footer-hint {
+      text-align: center;
+      font-size: calc(12px * var(--fs));
+      color: var(--text-dim);
+      font-family: var(--mono);
+      letter-spacing: 0.5px;
+    }
+
+
+    /* ---------- OVERLAY (interpretation theater) ---------- */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 0, 10, 0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 16px;
+    }
+
+    #overlay.active {
+      display: flex;
+    }
+
+    .flash {
+      position: fixed;
+      inset: 0;
+      background: #fff;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 60;
+    }
+
+    .flash.go {
+      animation: flashpop .35s ease-out;
+    }
+
+    @keyframes flashpop {
+      0% {
+        opacity: 0.85;
+      }
+
+      100% {
+        opacity: 0;
+      }
+    }
+
+    /* A record can be long. Cap the panel to the window and scroll the body, so
+     the continue button can never be pushed off-screen and strand the player. */
+    .theater {
+      max-width: 460px;
+      width: 100%;
+      background: var(--bg-panel);
+      border: 2px solid var(--border);
+      padding: 18px;
+      text-align: center;
+      transform: scale(0.8);
+      opacity: 0;
+      animation: zoomin .3s ease-out forwards;
+      max-height: calc(100vh - 32px);
+      max-height: calc(100dvh - 32px);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .theater-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    @keyframes zoomin {
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .theater.shake {
+      animation: zoomin .3s ease-out forwards, shake .4s ease;
+    }
+
+    @keyframes shake {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      20% {
+        transform: translateX(-6px);
+      }
+
+      40% {
+        transform: translateX(6px);
+      }
+
+      60% {
+        transform: translateX(-4px);
+      }
+
+      80% {
+        transform: translateX(4px);
+      }
+    }
+
+    .char-stage {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+
+    .char-stage canvas.main-sprite {
+      transition: opacity .2s;
+      max-width: 100%;
+      filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.6));
+    }
+
+    .icon-canvas {
+      position: absolute;
+      top: 2px;
+      right: calc(50% - 130px);
+      z-index: 2;
+    }
+
+    .theater .npc-name {
+      font-family: var(--mono);
+      font-size: calc(13px * var(--fs));
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      min-height: 14px;
+    }
+
+    .theater .caption {
+      font-size: calc(14px * var(--fs));
+      line-height: 1.7;
+      margin: 8px 0;
+      min-height: 44px;
+      color: var(--text);
+    }
+
+    .theater .quote {
+      font-size: calc(14px * var(--fs));
+      line-height: 1.85;
+      margin: 10px 0;
+      text-align: left;
+    }
+
+    .theater .gain {
+      font-family: var(--mono);
+      font-size: calc(26px * var(--fs));
+      color: var(--gold);
+      font-weight: bold;
+      text-shadow: 0 0 14px rgba(255, 210, 63, 0.7);
+    }
+
+    .theater .viral-tag {
+      display: inline-block;
+      margin-top: 6px;
+      font-family: var(--mono);
+      font-size: calc(13px * var(--fs));
+      background: var(--netizen);
+      color: #000;
+      padding: 2px 8px;
+      letter-spacing: 1px;
+    }
+
+    .theater button {
+      flex-shrink: 0;
+      width: 100%;
+      margin-top: 14px;
+      background: none;
+      border: 2px solid var(--term-fg);
+      color: var(--term-fg);
+      text-shadow: var(--glow);
+      font-family: var(--mono);
+      font-size: calc(13px * var(--fs));
+      padding: 10px 22px;
+      cursor: pointer;
+      letter-spacing: 2px;
+    }
+
+    .theater button:hover {
+      background: rgba(126, 240, 168, 0.14);
+    }
+
+    .hidden-el {
+      display: none !important;
+    }
+
+    .ticker-wrap {
+      height: 30px;
+    }
+
+    .ticker-live {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--danger);
+      margin-right: 6px;
+      flex-shrink: 0;
+      animation: livepulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes livepulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.25;
+      }
+    }
+
+
+    .term-title {
+      font-family: var(--mono);
+      letter-spacing: 2px;
+      color: var(--term-fg);
+      text-shadow: var(--glow);
+    }
+
+    .term-title::before {
+      content: '▚ ';
+      opacity: 0.8;
+    }
+
+
+    .rec {
+      text-align: left;
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.32);
+      padding: 0 0 12px;
+      font-family: var(--sans);
+    }
+
+    .rec-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 210, 63, 0.07);
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      color: var(--gold);
+      letter-spacing: 1px;
+    }
+
+    .rec-top .rt {
+      color: var(--text-dim);
+    }
+
+    .rec-by {
+      padding: 8px 12px 0;
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      color: var(--text-dim);
+    }
+
+    .rec-sec {
+      margin: 11px 12px 5px;
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 3px;
+    }
+
+    .rec-sec::before {
+      content: '── ';
+      opacity: 0.6;
+    }
+
+    .rec-raw {
+      margin: 0 12px;
+      font-family: var(--mono);
+      font-size: calc(12.5px * var(--fs));
+      line-height: 1.85;
+      color: var(--cyan);
+    }
+
+    .rec-body {
+      margin: 0 12px;
+      font-size: calc(13.5px * var(--fs));
+      line-height: 1.9;
+    }
+
+    .rec-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin: 12px 12px 0;
+      padding-top: 9px;
+      border-top: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      color: var(--text-dim);
+    }
+
+    .rec-foot b {
+      font-size: calc(21px * var(--fs));
+      color: var(--gold);
+      text-shadow: 0 0 12px rgba(255, 210, 63, 0.6);
+    }
+
+    .rec-note {
+      margin: 9px 12px 0;
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      color: var(--netizen);
+      line-height: 1.6;
+    }
+
+/* ===================================================================
+   NEW — Tilt Maze
+   =================================================================== */
+/* ---------- THE FIELD ----------
+   The tray, its walls and the tilt all live inside the canvas as real 3D — see
+   the projection in game.js. Nothing about the tilt is written down as a number
+   anywhere on screen: you read it off the tray and off the ball's shadow. */
+.arena-wrap {
+  display: none;
+  padding: 6px 0 2px;
+  margin-bottom: 10px;
+}
+
+.arena-wrap.on {
+  display: block;
+}
+
+/* the depth is projected inside the canvas, so the element itself stays flat —
+   only the glow bleeds out of it */
+.arena-board {
+  display: flex;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 55%, rgba(80, 150, 200, 0.10), transparent 70%);
+}
+
+.arena-board canvas {
+  display: block;
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.85));
+}
+
+.arena-cap {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: calc(12px * var(--fs));
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  margin-top: 10px;
+  min-height: 1.4em;
+}
+
+.arena-cap.warn {
+  color: var(--danger);
+}
+
+/* the stage collapses out of the way once the field opens, so the two never
+   fight for the same vertical space on a phone */
+.stage.tucked {
+  height: 92px;
+}
+
+.stage.gone {
+  display: none;
+}
+
+/* ---------- COUNTDOWN ---------- */
+.doom-fill.calm {
+  background: linear-gradient(90deg, var(--term-fg), var(--cyan));
+}
+
+/* ---------- GAME OVER REPORT (arcade) ---------- */
+#reportOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 8, 5, 0.94);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 120;
+  padding: 14px;
+}
+
+#reportOverlay.active {
+  display: flex;
+}
+
+.report {
+  width: 100%;
+  max-width: 460px;
+  background: var(--bg-panel);
+  border: 3px solid var(--border);
+  padding: 14px;
+  text-align: center;
+  animation: zoomin .28s ease-out forwards;
+}
+
+.report-head {
+  font-family: var(--mono);
+  font-size: calc(26px * var(--fs));
+  letter-spacing: 6px;
+  color: var(--danger);
+  text-shadow: 0 0 14px rgba(255, 95, 86, 0.6);
+  margin-bottom: 10px;
+}
+
+#reportCard {
+  width: 100%;
+  height: auto;
+  border: 2px solid var(--border);
+  background: #000;
+}
+
+.report-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.report-btns button,
+.start-inner button {
+  font-family: var(--mono);
+  font-size: calc(14px * var(--fs));
+  letter-spacing: 1px;
+  padding: 9px 14px;
+  background: none;
+  color: var(--text-dim);
+  border: 2px solid var(--border);
+  cursor: pointer;
+}
+
+.report-btns button:hover,
+.start-inner button:hover {
+  color: var(--term-fg);
+  border-color: var(--term-fg);
+  box-shadow: var(--glow);
+}
+
+.report-btns button.primary,
+.start-inner button.primary {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.report-note {
+  font-family: var(--mono);
+  font-size: calc(12px * var(--fs));
+  color: var(--text-dim);
+  margin-top: 8px;
+  min-height: 1.4em;
+}
+
+/* ---------- START ---------- */
+#startScreen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-void);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 140;
+  padding: 16px;
+}
+
+#startScreen.gone {
+  display: none;
+}
+
+.start-inner {
+  text-align: center;
+  border: 3px solid var(--border);
+  background: var(--bg-panel);
+  padding: 26px 20px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.start-title {
+  font-family: var(--mono);
+  font-size: calc(30px * var(--fs));
+  letter-spacing: 8px;
+  color: var(--term-fg);
+  text-shadow: var(--glow), 0 0 26px rgba(126, 240, 168, 0.35);
+}
+
+.start-sub {
+  font-family: var(--mono);
+  font-size: calc(11px * var(--fs));
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin: 8px 0 22px;
+}
+
+.start-inner button {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 12px;
+}
+
+.start-note {
+  font-family: var(--mono);
+  font-size: calc(12px * var(--fs));
+  color: var(--text-dim);
+  line-height: 1.8;
+  margin-top: 18px;
+}
+
+/* the d-pad is a held control here, so it needs a pressed state */
+.dpad button.held {
+  color: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(255, 210, 63, 0.5) inset;
+}
+
+  </style>
+</head>
+
+<body>
+  <div id="app">
+
+    <header>
+      <div>
+        <h1>思想重力場</h1>
+        <div class="subtitle">TILT MAZE · 大師觀測終端 · 傾斜實驗艙</div>
+      </div>
+      <div class="influence-box">
+        <div class="label" id="scoreLabel">影響力指數（協會認證）</div>
+        <div class="num" id="influenceNum">0</div>
+      </div>
+    </header>
+
+    <!-- The countdown reuses the doomsday rail: in this scene it is the window
+         of time in which the subject is still capable of understanding. -->
+    <div class="doom-wrap">
+      <div class="doom-label"><span id="clockLabel">頓悟窗口</span><span id="clockRight">— —</span></div>
+      <div class="doom-track">
+        <div class="doom-fill" id="clockFill"></div>
+      </div>
+    </div>
+
+    <main>
+      <!-- The street stage and the gravity field occupy the same slot: the field
+           is what the street becomes once the master starts thinking. -->
+      <div class="stage" id="stage">
+        <div class="stage-hint" id="stageHint">走在街上，遇見了……</div>
+        <canvas id="npcTok" class="token"></canvas>
+        <div id="bubble" class="bubble"><span class="tag" id="bubbleTag">教授派</span><br><span id="bubbleText"></span>
+        </div>
+        <canvas id="playerTok" class="token"></canvas>
+        <div class="road"></div>
+      </div>
+
+      <div class="arena-wrap" id="arenaWrap">
+        <div class="arena-board" id="arenaBoard">
+          <canvas id="arena"></canvas>
+        </div>
+        <div class="arena-cap" id="arenaCap"></div>
+      </div>
+
+      <div class="dpad-wrap">
+        <div class="dpad">
+          <button id="dUp" disabled title="場地北傾">⬆️<span class="dk">北傾</span></button>
+          <button id="dLeft" disabled title="場地西傾">⬅️<span class="dk">西傾</span></button>
+          <div id="dCenter">重<br>力</div>
+          <button id="dRight" disabled title="場地東傾">➡️<span class="dk">東傾</span></button>
+          <button id="dDown" disabled title="場地南傾">⬇️<span class="dk">南傾</span></button>
+        </div>
+      </div>
+
+      <div class="footer-hint" id="footerHint">按住方向鍵讓場地持續傾斜，放開後會慢慢回正。</div>
+    </main>
+
+    <div class="panel-card" id="factionCard">
+      <div class="pc-head"><span class="term-title">各學派信任度</span></div>
+      <div class="factions" id="factionsPanel"></div>
+    </div>
+
+    <div class="panel-card" id="newsCard">
+      <div class="pc-head"><span class="ticker-live"></span><span class="term-title">協會新聞線</span></div>
+      <div class="news-list" id="newsList"></div>
+    </div>
+
+    <div class="ticker-wrap">
+      <div class="ticker-label"><span class="ticker-live"></span>協會新聞線</div>
+      <div class="ticker-track" id="tickerTrack">世界正在等待大師傾斜第一次……</div>
+    </div>
+
+  </div>
+
+  <div class="flash" id="flash"></div>
+
+  <!-- interpretation theater (ported) -->
+  <div id="overlay">
+    <div class="theater term" id="theater">
+      <div class="theater-scroll">
+        <div class="npc-name" id="theaterName">&nbsp;</div>
+        <div class="char-stage">
+          <canvas id="mainSprite" class="main-sprite"></canvas>
+          <canvas id="iconSprite" class="icon-canvas hidden-el"></canvas>
+        </div>
+        <div class="caption" id="theaterCaption"></div>
+        <div class="quote hidden-el" id="theaterQuote"></div>
+        <div class="gain hidden-el" id="theaterGain">+0</div>
+        <div id="viralTag" style="display:none" class="viral-tag">🔥 迷因病毒式擴散！</div>
+        <button id="continueBtn" class="hidden-el">繼續</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- arcade game-over report (endless mode only) -->
+  <div id="reportOverlay">
+    <div class="report term">
+      <div class="report-head">GAME OVER</div>
+      <canvas id="reportCard"></canvas>
+      <div class="report-btns">
+        <button id="againBtn" class="primary">再挑戰一次</button>
+        <button id="shotBtn">存成圖片</button>
+        <button id="copyBtn">複製戰績</button>
+        <button id="quitBtn">回到街上</button>
+      </div>
+      <div class="report-note" id="reportNote"></div>
+    </div>
+  </div>
+
+  <div id="startScreen">
+    <div class="start-inner term">
+      <div class="start-title">思想重力場</div>
+      <div class="start-sub">TILT MAZE — 協會傾斜實驗艙 · 原型</div>
+      <button class="primary" id="storyBtn">劇情模式</button>
+      <button id="endlessBtn">無限模式</button>
+      <div class="start-note">方向鍵／WASD／下方按鈕：按住傾斜場地。<br>球必須自己滾進洞裡——你不能碰它。</div>
+    </div>
+  </div>
+
+
+  <script>
+    (function () {
+      'use strict';
+/* ===================================================================
+   PORTED FROM index.html
+   =================================================================== */
+      /* ================= PIXEL SPRITE DATA ================= */
+      const PLAYER_BASE = [
+        '         ..         ',
+        '        .hh.        ',
+        '       .hGGh.       ',
+        '      .hHGGHh.      ',
+        '     .hHHHHHHh.     ',
+        '    .hHHHHHHHHh.    ',
+        '   .hHHHHHHHHHHh.   ',
+        '   .hHHHHHHHHHHh.   ',
+        '   .hHHHHHHHHHHh.   ',
+        '   .hHddddddddHh.   ',
+        '   .hHddddddddHh.   ',
+        '   .hHddddddddHh.   ',
+        '    .hddddddddh.    ',
+        '    .hddddddddh.    ',
+        '     .dddddddd.     ',
+        '     .dddddddd.     ',
+        '    .hHHHHHHHHh.    ',
+        '   .hHHHHHHHHHHh.   ',
+        ' .hHHHHHHHHHHHHHHh. ',
+        '.hHHHHHHHHHHHHHHHHh.',
+        '.hHHHHHHHHHHHHHHHHh.',
+        '.hHHHHHHHHHHHHHHHHh.',
+        '.hHHHHHHHHHHHHHHHHh.',
+        '.hHHHHHHHHHHHHHHHHh.',
+        'GGGGGGGGGGGGGGGGGGGG',
+        '.hHHHHHHHHHHHHHHHHh.'
+      ];
+      const PLAYER_PALETTE = { '.': '#0a0512', 'H': '#3a2266', 'h': '#241546', 'd': '#120a1f', 'G': '#ffd23f', 'g': '#6ff0e8', 'W': '#eafcff', 'P': '#1c1030' };
+      const EYE_BY_DIR = {
+        neutral: ['  ....  ', ' .gggg. ', '.gWWWWg.', '.gWPPWg.', '.gWWWWg.', ' .gggg. ', '  ....  '],
+        up: ['  ....  ', ' .gggg. ', '.gWPPWg.', '.gWWWWg.', '.gWWWWg.', ' .gggg. ', '  ....  '],
+        down: ['  ....  ', ' .gggg. ', '.gWWWWg.', '.gWWWWg.', '.gWPPWg.', ' .gggg. ', '  ....  '],
+        left: ['  ....  ', ' .gggg. ', '.gWWWWg.', '.gPPWWg.', '.gWWWWg.', ' .gggg. ', '  ....  '],
+        right: ['  ....  ', ' .gggg. ', '.gWWWWg.', '.gWWPPg.', '.gWWWWg.', ' .gggg. ', '  ....  ']
+      };
+      const EYE_R0 = 9, EYE_C0 = 6;
+
+      const NPC_SKIN_PALETTE_BASE = { '.': '#0a0512', 'S': '#e8b98a', 's': '#c99a6b', 'P': '#1c1030', 'B': '#4a3a2c' };
+      function humanPalette(A, a, C, c, T) { return Object.assign({}, NPC_SKIN_PALETTE_BASE, { A, a, C, c, T }); }
+
+      const NPC_HUMAN_GRID = [
+        '        .aa.        ',
+        '      .aAAAAa.      ',
+        '    .sSSSSSSSSs.    ',
+        '   .sSSSSSSSSSSs.   ',
+        '   .sSSSSSSSSSSs.   ',
+        '   .sSSSBSSBSSSs.   ',
+        '   .sSSSPSSPSSSs.   ',
+        '   .sSSSSSSSSSSs.   ',
+        '   .sSSSSSSSSSSs.   ',
+        '    .sSSSSSSSSs.    ',
+        '       .sSSs.       ',
+        '     .TTTTTTTT.     ',
+        '    .cCCCCCCCCc.    ',
+        '   .cCCCCCCCCCCc.   ',
+        '  .cCCCCCCCCCCCCc.  ',
+        ' .cCCCCCCCCCCCCCCc. ',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.'
+      ];
+      // taller hairline variant used for merchant/netizen/rival (hair covers 3 rows)
+      const NPC_HUMAN_GRID_HAIR3 = [
+        '        .aa.        ',
+        '      .aAAAAa.      ',
+        '    .aAAAAAAAAa.    ',
+        '   .sSSSSSSSSSSs.   ',
+        '   .sSSSSSSSSSSs.   ',
+        '   .sSSSBSSBSSSs.   ',
+        '   .sSSSPSSPSSSs.   ',
+        '   .sSSSSSSSSSSs.   ',
+        '   .sSSSSSSSSSSs.   ',
+        '    .sSSSSSSSSs.    ',
+        '       .sSSs.       ',
+        '     .TTTTTTTT.     ',
+        '    .cCCCCCCCCc.    ',
+        '   .cCCCCCCCCCCc.   ',
+        '  .cCCCCCCCCCCCCc.  ',
+        ' .cCCCCCCCCCCCCCCc. ',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.'
+      ];
+      const NPC_HUMAN_GRID_RIVAL = [
+        '        .aa.        ',
+        '      .aAAAAa.      ',
+        '    .aAAAAAAAAa.    ',
+        '   .sSSSSSSSSSSs.   ',
+        '   .sSSSSSSSSSSs.   ',
+        '   .sSSBBSSBBSSs.   ',
+        '   .sSSSPSSPSSSs.   ',
+        '   .sSSSSSSSSSSs.   ',
+        '   .sSSSSSSSSSSs.   ',
+        '    .sSSSSSSSSs.    ',
+        '       .sSSs.       ',
+        '     .TTTTTTTT.     ',
+        '    .cCCCCCCCCc.    ',
+        '   .cCCCCCCCCCCc.   ',
+        '  .cCCCCCCCCCCCCc.  ',
+        ' .cCCCCCCCCCCCCCCc. ',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.',
+        '.cCCCCCCCCCCCCCCCCc.'
+      ];
+
+      const NPC_AI_GRID = [
+        '       .nCCn.       ',
+        '     .nNNNNNNn.     ',
+        '    .nNNNNNNNNn.    ',
+        '   .nNNNNNNNNNNn.   ',
+        '   .nNNNNNNNNNNn.   ',
+        '   .nNvVVVVVVvNn.   ',
+        '   .nNvVVVVVVvNn.   ',
+        '   .nNNNNNNNNNNn.   ',
+        '    .nNNNNNNNNn.    ',
+        '     .nNNNNNNn.     ',
+        '      .nNNNNn.      ',
+        '    .nNNNNNNNNn.    ',
+        '   .nNNNNNNNNNNn.   ',
+        '  .nNNNNNNNNNNNNn.  ',
+        ' .nNNNNCCCCCCNNNNn. ',
+        '.nNNNNNNNNNNNNNNNNn.',
+        '.nNNNNNNNNNNNNNNNNn.',
+        '.nNNNNNNNNNNNNNNNNn.',
+        '.nNNNNNNNNNNNNNNNNn.',
+        '.nNNNNNNNNNNNNNNNNn.',
+        '.nNNNNNNNNNNNNNNNNn.',
+        '.nNNNNNNNNNNNNNNNNn.',
+        '.nNNNNNNNNNNNNNNNNn.',
+        '.nNNNNNNNNNNNNNNNNn.'
+      ];
+      const NPC_AI_PALETTE = { '.': '#0a0512', 'N': '#9d9ab0', 'n': '#716e88', 'V': '#b98bff', 'v': '#7a4fd1', 'C': '#3fe6e0' };
+
+      const ICON_THINK = ['  ......  ', ' .WWWWWW. ', '.WWWWWWWW.', '.WWWWWWWW.', '.WD.WD.WD.', '.WWWWWWWW.', ' .WWWWWW. ', '  .  .    '];
+      const ICON_BURST = ['  .Y.  ', ' .YYY. ', ' .YYY. ', '  .Y.  ', '  .Y.  ', '  ...  ', '  .Y.  '];
+      const ICON_PALETTE = { '.': '#0a0512', 'W': '#f5eee6', 'D': '#3a2a55', 'Y': '#ffd23f', 'y': '#ffb703' };
+
+      const NPC_DEFS = {
+        professor: { grid: NPC_HUMAN_GRID, palette: humanPalette('#cfcad8', '#a7a2b8', '#284b6e', '#1c3a56', '#3fe6e0') },
+        religion: { grid: NPC_HUMAN_GRID, palette: humanPalette('#fff3d6', '#e8d9ad', '#6b4a86', '#4e3564', '#ffcf56') },
+        merchant: { grid: NPC_HUMAN_GRID_HAIR3, palette: humanPalette('#4a3a2c', '#342718', '#7a4a2c', '#5c3720', '#ff8c42') },
+        netizen: { grid: NPC_HUMAN_GRID_HAIR3, palette: humanPalette('#ff2e88', '#c71f66', '#2a2038', '#1c1628', '#ff2e88') },
+        rival: { grid: NPC_HUMAN_GRID_RIVAL, palette: humanPalette('#ff4d4d', '#c73434', '#3a1420', '#280e16', '#ff4d4d') },
+        ai: { grid: NPC_AI_GRID, palette: NPC_AI_PALETTE },
+        military: { grid: NPC_HUMAN_GRID_HAIR3, palette: humanPalette('#5a5f3c', '#3d4128', '#4a5c3a', '#333f28', '#c9a227') },
+        awakened: { grid: NPC_HUMAN_GRID, palette: humanPalette('#dfe8ff', '#a9b8e0', '#241238', '#170b26', '#7fe8e6') },
+        boss1: { grid: NPC_HUMAN_GRID, palette: humanPalette('#e8e2d4', '#bdb6a4', '#6b3a1e', '#4a2714', '#ff8c42') },
+        boss2: { grid: NPC_HUMAN_GRID_HAIR3, palette: humanPalette('#2f4a6b', '#1e3350', '#143a52', '#0d2738', '#3fe6e0') },
+        boss3: { grid: NPC_AI_GRID, palette: { '.': '#0a0512', 'N': '#c8c4d8', 'n': '#8f8ba6', 'V': '#ff6ad5', 'v': '#b32d8f', 'C': '#ffd23f' } }
+      };
+
+      /* ================= CANVAS DRAWING ================= */
+      function drawGrid(canvas, rows, palette, cell) {
+        canvas.width = rows[0].length * cell;
+        canvas.height = rows.length * cell;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let y = 0; y < rows.length; y++) {
+          const row = rows[y];
+          for (let x = 0; x < row.length; x++) {
+            const ch = row[x];
+            if (ch === ' ') continue;
+            ctx.fillStyle = palette[ch] || '#ff00ff';
+            ctx.fillRect(x * cell, y * cell, cell, cell);
+          }
+        }
+      }
+
+      function playerRows(dir) {
+        const base = PLAYER_BASE.map(r => r.split(''));
+        const eye = EYE_BY_DIR[dir] || EYE_BY_DIR.neutral;
+        for (let dy = 0; dy < eye.length; dy++) {
+          for (let dx = 0; dx < eye[dy].length; dx++) {
+            const ch = eye[dy][dx];
+            if (ch !== ' ') base[EYE_R0 + dy][EYE_C0 + dx] = ch;
+          }
+        }
+        return base.map(r => r.join(''));
+      }
+
+      function drawPlayer(canvas, dir, cell) { drawGrid(canvas, playerRows(dir), PLAYER_PALETTE, cell); }
+      function drawNPC(canvas, faction, cell) { const d = NPC_DEFS[faction]; drawGrid(canvas, d.grid, d.palette, cell); }
+
+      /* ================= PORTRAIT LAYER (presentation) =================
+         Two-layer character presentation:
+           - the small grids above are the *gameplay* layer (position and facing)
+           - this is the *presentation* layer: a real pixel-art bust that acts.
+    
+         This is an honest pixel pipeline, not vector shapes on a canvas:
+           1. everything is drawn into a fixed 96x112 logical PIXEL BUFFER of
+              palette keys — one array slot is exactly one art pixel
+           2. head angle is a per-row integer SHEAR (how pixel artists rotate),
+              never ctx.rotate(), which is what smears the grid
+           3. the buffer gets a contour pass, then is blitted through ImageData and
+              scaled with nearest-neighbour, so every pixel stays square and crisp
+           4. breathing is quantised into 8 cached frames per pose — a real sprite
+              animation, and cheap enough to run many portraits at once
+    
+         A pose is a set of values (gaze, brow, mouth, tilt, lift, breath), so the
+         four D-pad directions are four different performances, not one image moved.
+         Swapping in hand-drawn art later means replacing buildPortrait() only. */
+
+      const PORT = { W: 96, H: 112 };
+
+      const PORTRAIT_DEFS = {
+        player: { skin: '#f2c79c', hair: '#5b34a0', cloth: '#2c1a52', eye: '#6ff0e8', accent: '#ffd23f', style: 'swept', acc: 'none' },
+        professor: { skin: '#e9c096', hair: '#d3ced9', cloth: '#2f5680', eye: '#3fe6e0', accent: '#3fe6e0', style: 'short', acc: 'glasses' },
+        religion: { skin: '#f5d3ac', hair: '#fdf0d2', cloth: '#7a559a', eye: '#ffcf56', accent: '#ffcf56', style: 'long', acc: 'hood' },
+        merchant: { skin: '#dfb184', hair: '#4c3b2b', cloth: '#8a5430', eye: '#ff8c42', accent: '#ff8c42', style: 'slick', acc: 'tie' },
+        ai: { skin: '#bcb9cc', hair: '#b98bff', cloth: '#2d2240', eye: '#3fe6e0', accent: '#b98bff', style: 'visor', acc: 'visor' },
+        netizen: { skin: '#f0c29c', hair: '#ff2e88', cloth: '#2d2240', eye: '#ff2e88', accent: '#ff2e88', style: 'messy', acc: 'phone' },
+        military: { skin: '#daab7e', hair: '#4c4f36', cloth: '#526640', eye: '#c9a227', accent: '#c9a227', style: 'buzz', acc: 'cap' },
+        awakened: { skin: '#e6d8f4', hair: '#e2ebff', cloth: '#2a1542', eye: '#7fe8e6', accent: '#7fe8e6', style: 'long', acc: 'halo' },
+        rival: { skin: '#eeba96', hair: '#ff4d4d', cloth: '#421725', eye: '#ff4d4d', accent: '#ff4d4d', style: 'spike', acc: 'none' },
+        boss1: { skin: '#e6be98', hair: '#ece6d8', cloth: '#7a4322', eye: '#ff8c42', accent: '#ff8c42', style: 'short', acc: 'glasses' },
+        boss2: { skin: '#d2a077', hair: '#35527a', cloth: '#17435e', eye: '#3fe6e0', accent: '#3fe6e0', style: 'long', acc: 'cap' },
+        boss3: { skin: '#c9c5da', hair: '#ff6ad5', cloth: '#1d1429', eye: '#ffd23f', accent: '#ff6ad5', style: 'visor', acc: 'visor' }
+      };
+
+      /* Colour ramps: pixel art reads by having few, deliberate steps. */
+      function shiftHex(hex, amt) {
+        const n = parseInt(hex.slice(1), 16);
+        const cl = v => Math.max(0, Math.min(255, v));
+        const r = cl(((n >> 16) & 255) + amt), g = cl(((n >> 8) & 255) + amt), b = cl((n & 255) + amt);
+        return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+      }
+      const PAL_CACHE = {};
+      function palOf(key) {
+        if (PAL_CACHE[key]) return PAL_CACHE[key];
+        const d = PORTRAIT_DEFS[key] || PORTRAIT_DEFS.player;
+        const p = {
+          OL: '#100a16',
+          S3: shiftHex(d.skin, 26), S2: d.skin, S1: shiftHex(d.skin, -34), S0: shiftHex(d.skin, -68),
+          H2: shiftHex(d.hair, 30), H1: d.hair, H0: shiftHex(d.hair, -46),
+          C2: shiftHex(d.cloth, 28), C1: d.cloth, C0: shiftHex(d.cloth, -32),
+          EW: '#f6f2ec', EG: '#cfc4d4', EI: d.eye, EP: '#170f22', AC: d.accent, WH: '#ffffff',
+          M1: '#7a3542', M0: '#48202b', T: '#f6ecd8'
+        };
+        PAL_CACHE[key] = p; return p;
+      }
+
+      /* ---- pixel buffer primitives ---- */
+      function PB(w, h) { return { w, h, d: new Array(w * h).fill(null) }; }
+      function pset(b, x, y, c) { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= b.w || y >= b.h) return; b.d[y * b.w + x] = c; }
+      function pgetp(b, x, y) { if (x < 0 || y < 0 || x >= b.w || y >= b.h) return null; return b.d[y * b.w + x]; }
+      function phline(b, x0, x1, y, c) { x0 |= 0; x1 |= 0; for (let x = x0; x <= x1; x++) pset(b, x, y, c); }
+      function prect(b, x, y, w, h, c) { for (let j = 0; j < h; j++) phline(b, x, x + w - 1, y + j, c); }
+      function pellipse(b, cx, cy, rx, ry, c, y0, y1) {
+        for (let dy = -ry; dy <= ry; dy++) {
+          const yy = cy + dy;
+          if (y0 !== undefined && yy < y0) continue;
+          if (y1 !== undefined && yy > y1) continue;
+          const w = Math.round(rx * Math.sqrt(Math.max(0, 1 - (dy * dy) / (ry * ry))));
+          if (w > 0) phline(b, cx - w, cx + w - 1, yy, c);
+        }
+      }
+      /* 2x2 checker dither between two ramp steps — classic pixel shading */
+      function pdither(b, x, y, w, h, c, phase) {
+        for (let j = 0; j < h; j++) for (let i = 0; i < w; i++)
+          if (((x + i) + (y + j) + (phase || 0)) % 2 === 0) pset(b, x + i, y + j, c);
+      }
+      /* contour pass: one dark pixel around every filled edge, the thing that
+         makes pixel art read as pixel art */
+      function pcontour(b, c) {
+        const src = b.d.slice();
+        const at = (x, y) => (x < 0 || y < 0 || x >= b.w || y >= b.h) ? null : src[y * b.w + x];
+        for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
+          if (src[y * b.w + x] !== null) continue;
+          if (at(x, y - 1) || at(x, y + 1) || at(x - 1, y) || at(x + 1, y)) b.d[y * b.w + x] = c;
+        }
+      }
+      /* how pixel artists tilt a head: shift whole rows by integer amounts */
+      function pblitShear(dst, src, dx, dy, k, pivot) {
+        for (let y = 0; y < src.h; y++) {
+          const off = Math.round((y - pivot) * k);
+          for (let x = 0; x < src.w; x++) {
+            const v = src.d[y * src.w + x];
+            if (v !== null) pset(dst, dx + x + off, dy + y, v);
+          }
+        }
+      }
+
+      const POSES = {
+        neutral: { gaze: [0, 0], brow: 'flat', mouth: 'rest', tilt: 0.00, lift: 0, breath: { amp: 1.0, rate: 1.00 }, spark: 0 },
+        // the four ways of thinking, one per D-pad direction
+        up: { gaze: [0, -3], brow: 'raise', mouth: 'part', tilt: -0.07, lift: -4, breath: { amp: 2.0, rate: 0.60 }, spark: 0 },
+        left: { gaze: [-4, -1], brow: 'furrow', mouth: 'tight', tilt: 0.09, lift: 0, breath: { amp: 0.8, rate: 0.70 }, spark: 0 },
+        right: { gaze: [4, -1], brow: 'raise', mouth: 'firm', tilt: -0.04, lift: -2, breath: { amp: 1.4, rate: 1.40 }, spark: 1 },
+        down: { gaze: [0, 3], brow: 'furrow', mouth: 'rest', tilt: 0.03, lift: 4, breath: { amp: 0.7, rate: 0.65 }, spark: 0 },
+        // reaction beats for the NPC side of the performance
+        think: { gaze: [-2, 2], brow: 'furrow', mouth: 'tight', tilt: 0.10, lift: 2, breath: { amp: 0.9, rate: 0.80 }, spark: 0 },
+        realize: { gaze: [0, -1], brow: 'raise', mouth: 'gape', tilt: -0.02, lift: -3, breath: { amp: 2.8, rate: 2.10 }, spark: 2 },
+        awe: { gaze: [0, -2], brow: 'raise', mouth: 'part', tilt: 0.00, lift: -2, breath: { amp: 1.8, rate: 0.90 }, spark: 1 },
+        rattled: { gaze: [3, 2], brow: 'sad', mouth: 'gape', tilt: 0.12, lift: 2, breath: { amp: 2.4, rate: 2.40 }, spark: 0 }
+      };
+
+      const FRAMES = 8;   // breathing cycle length, in cached sprite frames
+
+      /* ---- the head, drawn into its own buffer so it can be sheared as a unit ---- */
+      function buildHead(defKey, p, bob) {
+        const d = PORTRAIT_DEFS[defKey] || PORTRAIT_DEFS.player;
+        const h = PB(60, 68);
+        const cx = 30, cy = 32;
+
+        // skull: base, then two shading steps and a dithered transition
+        pellipse(h, cx, cy, 21, 25, 'S2');
+        pellipse(h, cx + 7, cy + 2, 15, 22, 'S1', cy - 16, cy + 24);
+        pdither(h, cx + 2, cy - 14, 8, 34, 'S1', 0);
+        pellipse(h, cx - 6, cy - 4, 11, 15, 'S3', cy - 18, cy + 2);
+        pdither(h, cx - 1, cy - 16, 7, 22, 'S3', 1);
+        // jaw shadow
+        pellipse(h, cx, cy + 16, 13, 7, 'S1', cy + 18, cy + 24);
+        // ears
+        prect(h, cx - 23, cy - 1, 3, 8, 'S1'); prect(h, cx + 20, cy - 1, 3, 8, 'S1');
+        prect(h, cx - 22, cy + 1, 1, 4, 'S0'); prect(h, cx + 21, cy + 1, 1, 4, 'S0');
+
+        buildHair(h, d, cx, cy, bob);
+
+        // ---- brows ----
+        const bw = 10;
+        let by = cy - 11;
+        if (p.brow === 'raise') by -= 3;
+        if (p.brow === 'furrow') by += 2;
+        [[-14, -1], [5, 1]].forEach(([bx, side]) => {
+          for (let i = 0; i < bw; i++) {
+            let step = 0;
+            if (p.brow === 'furrow') step = Math.round(side * (i / (bw - 1) - 0.5) * 3.4);
+            if (p.brow === 'sad') step = Math.round(-side * (i / (bw - 1) - 0.5) * 3.4);
+            if (p.brow === 'raise') step = Math.round(Math.sin(i / (bw - 1) * Math.PI) * -1.2);
+            prect(h, cx + bx + i, by + step, 1, 3, 'H0');
+          }
+        });
+
+        // ---- eyes ----
+        const eyeY = cy - 4;
+        const [gx, gy] = p.gaze;
+        [-14, 5].forEach(ex => {
+          prect(h, cx + ex, eyeY, 9, 7, 'EW');
+          prect(h, cx + ex, eyeY, 9, 1, 'S0');            // socket depth
+          prect(h, cx + ex, eyeY + 1, 9, 1, 'EG');
+          prect(h, cx + ex, eyeY + 6, 9, 1, 'S1');          // lower lid
+          const ix = cx + ex + 3 + Math.max(-3, Math.min(3, gx));
+          const iy = eyeY + 2 + Math.max(-1, Math.min(2, gy));
+          prect(h, ix, iy, 4, 4, 'EI');
+          prect(h, ix + 1, iy + 1, 2, 2, 'EP');
+          pset(h, ix, iy, 'WH');                        // catchlight
+          if (p.spark > 0) { pset(h, ix + 3, iy, 'WH'); pset(h, ix + 3, iy + 1, 'WH'); }
+          // lashes
+          prect(h, cx + ex - 1, eyeY, 1, 2, 'H0'); prect(h, cx + ex + 9, eyeY, 1, 2, 'H0');
+        });
+
+        // ---- nose ----
+        const nx = cx - 1 + Math.round(gx * 0.3);
+        prect(h, nx, cy + 3, 2, 6, 'S1');
+        prect(h, nx - 1, cy + 8, 1, 2, 'S0');
+        prect(h, nx + 2, cy + 8, 1, 2, 'S0');
+        pset(h, nx, cy + 3, 'S3');
+
+        // ---- mouth ----
+        const my = cy + 14;
+        switch (p.mouth) {
+          case 'rest': prect(h, cx - 5, my, 10, 1, 'M0'); prect(h, cx - 4, my + 1, 8, 1, 'S1'); break;
+          case 'tight': prect(h, cx - 5, my, 10, 1, 'M0'); pset(h, cx - 6, my - 1, 'M0'); pset(h, cx + 5, my - 1, 'M0');
+            prect(h, cx - 4, my + 1, 8, 1, 'S1'); break;
+          case 'firm': prect(h, cx - 7, my, 14, 1, 'M0'); pset(h, cx - 8, my - 1, 'M0'); pset(h, cx + 7, my - 1, 'S1'); break;
+          case 'part': prect(h, cx - 5, my - 1, 10, 4, 'M0'); prect(h, cx - 4, my, 8, 2, 'M1');
+            prect(h, cx - 4, my - 1, 8, 1, 'T'); break;
+          case 'gape': pellipse(h, cx, my + 2, 7, 7, 'M0'); pellipse(h, cx, my + 3, 5, 5, 'M1');
+            prect(h, cx - 5, my - 3, 10, 2, 'T'); break;
+        }
+
+        buildAccessory(h, d, cx, cy, eyeY, p);
+        return h;
+      }
+
+      function buildHair(h, d, cx, cy, bob) {
+        const s = Math.round(bob * 0.5);
+        switch (d.style) {
+          case 'short':
+            pellipse(h, cx, cy - 4, 22, 21, 'H1', cy - 27, cy - 8);
+            pellipse(h, cx - 5, cy - 10, 13, 11, 'H2', cy - 25, cy - 14);
+            prect(h, cx - 23, cy - 11, 4, 12, 'H0'); prect(h, cx + 19, cy - 11, 4, 12, 'H0');
+            pdither(h, cx - 20, cy - 10, 40, 4, 'H0', 0);
+            break;
+          case 'swept':
+            pellipse(h, cx, cy - 5, 22, 22, 'H1', cy - 28, cy - 7);
+            pellipse(h, cx - 4, cy - 12, 15, 12, 'H2', cy - 26, cy - 15);
+            for (let i = 0; i < 16; i++) prect(h, cx - 21 + i + s, cy - 22 + Math.round(i * 0.42), 2, 5, 'H2');
+            prect(h, cx - 24, cy - 12, 4, 16, 'H0'); prect(h, cx + 20, cy - 12, 4, 13, 'H0');
+            break;
+          case 'long':
+            pellipse(h, cx, cy - 4, 22, 21, 'H1', cy - 27, cy - 7);
+            pellipse(h, cx - 5, cy - 11, 13, 11, 'H2', cy - 25, cy - 15);
+            prect(h, cx - 26 + s, cy - 13, 6, 38, 'H1'); prect(h, cx + 20 + s, cy - 13, 6, 38, 'H1');
+            prect(h, cx - 26 + s, cy + 11, 6, 14, 'H0'); prect(h, cx + 20 + s, cy + 11, 6, 14, 'H0');
+            pdither(h, cx - 25 + s, cy - 6, 4, 20, 'H2', 1);
+            break;
+          case 'slick':
+            pellipse(h, cx, cy - 7, 21, 18, 'H1', cy - 25, cy - 9);
+            for (let i = 0; i < 19; i++) prect(h, cx - 19 + i * 2, cy - 24 + Math.round(Math.abs(i - 9) * 0.5), 1, 14, i % 2 ? 'H2' : 'H0');
+            prect(h, cx - 21, cy - 19, 42, 2, 'H0');
+            break;
+          case 'messy':
+            pellipse(h, cx, cy - 5, 22, 21, 'H1', cy - 28, cy - 8);
+            [[-19, -27], [-11, -31], [-2, -30], [7, -31], [16, -26]].forEach(([hx, hy], i) => {
+              prect(h, cx + hx + (i % 2 ? s : -s), cy + hy, 4, 9, i % 2 ? 'H2' : 'H1');
+            });
+            prect(h, cx - 24, cy - 11, 5, 17, 'H0'); prect(h, cx + 19, cy - 11, 5, 17, 'H0');
+            break;
+          case 'spike':
+            pellipse(h, cx, cy - 5, 21, 20, 'H1', cy - 26, cy - 8);
+            [-17, -9, -1, 7, 14].forEach((hx, i) => {
+              const hh = 10 + (i % 2) * 6;
+              prect(h, cx + hx + s, cy - 25 - hh + 6, 5, hh, i % 2 ? 'H2' : 'H1');
+              prect(h, cx + hx + s, cy - 25 - hh + 6, 1, hh, 'H0');
+            });
+            break;
+          case 'buzz':
+            pellipse(h, cx, cy - 3, 21, 19, 'H0', cy - 25, cy - 9);
+            pdither(h, cx - 19, cy - 24, 38, 15, 'H1', 0);
+            break;
+          case 'visor':
+            pellipse(h, cx, cy - 5, 22, 21, 'H0', cy - 28, cy - 11);
+            prect(h, cx - 22, cy - 27, 44, 4, 'H1');
+            pdither(h, cx - 22, cy - 23, 44, 3, 'H2', 0);
+            break;
+        }
+      }
+
+      function buildAccessory(h, d, cx, cy, eyeY, p) {
+        switch (d.acc) {
+          case 'glasses':
+            [[-16], [3]].forEach(([ox]) => {
+              prect(h, cx + ox, eyeY - 2, 13, 1, 'AC'); prect(h, cx + ox, eyeY + 7, 13, 1, 'AC');
+              prect(h, cx + ox, eyeY - 2, 1, 10, 'AC'); prect(h, cx + ox + 12, eyeY - 2, 1, 10, 'AC');
+            });
+            prect(h, cx - 4, eyeY + 1, 8, 1, 'AC');
+            prect(h, cx - 23, eyeY - 1, 7, 1, 'AC'); prect(h, cx + 16, eyeY - 1, 7, 1, 'AC');
+            pset(h, cx - 14, eyeY - 1, 'WH'); pset(h, cx + 5, eyeY - 1, 'WH');   // lens glint
+            break;
+          case 'visor':
+            prect(h, cx - 21, eyeY - 3, 42, 11, 'AC');
+            pdither(h, cx - 21, eyeY - 3, 42, 11, 'EP', 0);
+            prect(h, cx - 21, eyeY - 4, 42, 1, 'H1');
+            prect(h, cx - 18, eyeY - 1, 6, 1, 'WH');
+            break;
+          case 'hood':
+            prect(h, cx - 26, cy - 19, 6, 34, 'C1'); prect(h, cx + 20, cy - 19, 6, 34, 'C1');
+            prect(h, cx - 26, cy - 22, 52, 4, 'C0');
+            pdither(h, cx - 26, cy - 19, 6, 30, 'C0', 0); pdither(h, cx + 20, cy - 19, 6, 30, 'C0', 1);
+            break;
+          case 'cap':
+            prect(h, cx - 22, cy - 26, 44, 7, 'C1');
+            pdither(h, cx - 22, cy - 26, 44, 4, 'C2', 0);
+            prect(h, cx - 27, cy - 20, 54, 3, 'C0');
+            prect(h, cx - 4, cy - 25, 8, 5, 'AC');
+            break;
+          case 'tie':
+            prect(h, cx - 3, cy + 29, 6, 14, 'AC'); prect(h, cx - 4, cy + 26, 8, 4, 'AC');
+            prect(h, cx - 3, cy + 29, 2, 14, 'WH');
+            break;
+          case 'halo':
+            for (let i = 0; i < 36; i++) if (i % 3 !== 2) pset(h, cx - 18 + i, cy - 32, 'AC');
+            break;
+          case 'phone':
+            prect(h, cx + 21, cy + 22, 9, 15, 'EP');
+            prect(h, cx + 22, cy + 23, 7, 12, 'AC');
+            prect(h, cx + 22, cy + 23, 7, 4, 'WH');
+            break;
+        }
+      }
+
+      function buildPortrait(defKey, poseKey, frame) {
+        const p = POSES[poseKey] || POSES.neutral;
+        const b = PB(PORT.W, PORT.H);
+        const phase = (frame / FRAMES) * Math.PI * 2;
+        const br = Math.sin(phase * p.breath.rate) * p.breath.amp;
+        const bob = Math.sin(phase * p.breath.rate - 0.9) * p.breath.amp;
+        const cx = 48;
+
+        // ---- shoulders / torso ----
+        const shY = 74 + Math.round(br * 0.5);
+        pellipse(b, cx, shY + 22, 40, 30, 'C1', shY, PORT.H - 1);
+        pellipse(b, cx + 10, shY + 24, 30, 28, 'C0', shY + 8, PORT.H - 1);
+        pdither(b, cx - 4, shY + 2, 24, 36, 'C0', 0);
+        pellipse(b, cx - 14, shY + 16, 14, 18, 'C2', shY + 4, shY + 26);
+        pdither(b, cx - 20, shY + 4, 16, 22, 'C2', 1);
+        prect(b, cx - 9, shY, 18, 6, 'C0');            // collar opening
+
+        // ---- neck ----
+        const neckY = 62 + p.lift + Math.round(br * 0.35);
+        prect(b, cx - 8, neckY, 16, 16, 'S1');
+        prect(b, cx - 6, neckY, 12, 13, 'S2');
+        prect(b, cx - 8, neckY, 16, 3, 'S0');          // shadow under the jaw
+
+        // ---- head, sheared as one unit ----
+        const head = buildHead(defKey, p, bob);
+        const headY = 6 + p.lift + Math.round(br * 0.4);
+        pblitShear(b, head, cx - 30, headY, p.tilt, 60);
+
+        pcontour(b, 'OL');
+
+        // ---- the "it clicked" glint, drawn after the contour so it stays bright ----
+        if (p.spark > 0 && (frame % FRAMES) < 5) {
+          const sx = cx + 30, sy = headY + 8;
+          for (let i = -5; i <= 5; i++) { pset(b, sx, sy + i, 'AC'); pset(b, sx + i, sy, 'AC'); }
+          pset(b, sx, sy, 'WH');
+          if (p.spark >= 2) {
+            for (let i = -3; i <= 3; i++) { pset(b, sx - 14, sy + 18 + i, 'AC'); pset(b, sx - 14 + i, sy + 18, 'AC'); }
+          }
+        }
+        return b;
+      }
+
+      /* ---- cache: one baked sprite frame per (character, pose, frame) ---- */
+      const SPRITE_CACHE = {};
+      function spriteFrame(defKey, poseKey, frame) {
+        const key = defKey + '|' + poseKey + '|' + frame;
+        if (SPRITE_CACHE[key]) return SPRITE_CACHE[key];
+        const buf = buildPortrait(defKey, poseKey, frame);
+        const pal = palOf(defKey);
+        const off = document.createElement('canvas');
+        off.width = buf.w; off.height = buf.h;
+        const octx = off.getContext('2d');
+        const img = octx.createImageData(buf.w, buf.h);
+        for (let i = 0; i < buf.d.length; i++) {
+          const k = buf.d[i];
+          if (!k) continue;
+          const hex = pal[k] || '#ff00ff';
+          const n = parseInt(hex.slice(1), 16);
+          img.data[i * 4] = (n >> 16) & 255;
+          img.data[i * 4 + 1] = (n >> 8) & 255;
+          img.data[i * 4 + 2] = n & 255;
+          img.data[i * 4 + 3] = 255;
+        }
+        octx.putImageData(img, 0, 0);
+        SPRITE_CACHE[key] = off;
+        return off;
+      }
+
+      function drawPortrait(canvas, defKey, poseKey, t) {
+        const scale = canvas._cell || 3;
+        const frame = Math.floor(t) % FRAMES;
+        if (canvas._lastKey === defKey + poseKey + frame + scale) return;   // nothing changed
+        canvas._lastKey = defKey + poseKey + frame + scale;
+        const spr = spriteFrame(defKey, poseKey, frame);
+        canvas.width = PORT.W * scale; canvas.height = PORT.H * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(spr, 0, 0, canvas.width, canvas.height);
+      }
+
+      const livePortraits = new Set();
+      function setPortrait(canvas, defKey, poseKey, cell) {
+        canvas._cell = cell || 3;
+        canvas._def = defKey; canvas._pose = poseKey;
+        if (!canvas._t0) canvas._t0 = performance.now();
+        livePortraits.add(canvas);
+        drawPortrait(canvas, defKey, poseKey, (performance.now() - canvas._t0) / 110);
+      }
+      function stopPortrait(canvas) { livePortraits.delete(canvas); }
+      (function portraitLoop() {
+        const now = performance.now();
+        livePortraits.forEach(cv => {
+          if (!cv.isConnected || cv.offsetParent === null) return;
+          drawPortrait(cv, cv._def, cv._pose, (now - cv._t0) / 110);
+        });
+        requestAnimationFrame(portraitLoop);
+      })();
+      function drawIcon(canvas, which, cell) {
+        if (which === 'think') drawGrid(canvas, ICON_THINK, ICON_PALETTE, cell);
+        else drawGrid(canvas, ICON_BURST, ICON_PALETTE, cell);
+      }
+
+      function drawWorldScene(canvas, intense) {
+        const W = 200, H = 92;
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, intense ? '#3a0712' : '#170a22');
+        grad.addColorStop(0.55, intense ? '#6e1712' : '#3a1728');
+        grad.addColorStop(1, intense ? '#c2481f' : '#82311f');
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+        for (let i = 0; i < 26; i++) {
+          ctx.fillStyle = Math.random() < 0.5 ? '#ffdca0' : '#ff8a4d';
+          ctx.fillRect(Math.random() * W, Math.random() * H * 0.5, 1, 1);
+        }
+
+        const vx = W * 0.72, vBaseY = H * 0.62, vTopY = H * 0.16, vHalf = 28;
+        ctx.fillStyle = '#170a12';
+        ctx.beginPath(); ctx.moveTo(vx - vHalf, vBaseY); ctx.lineTo(vx, vTopY); ctx.lineTo(vx + vHalf, vBaseY); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = intense ? '#ff6a2e' : '#ff9a3f'; ctx.fillRect(vx - 4, vTopY - 2, 8, 4);
+        ctx.fillStyle = '#ff4d1f'; ctx.fillRect(vx - 2, vTopY, 3, vBaseY - vTopY);
+        if (intense) ctx.fillRect(vx + 6, vTopY + 8, 2, vBaseY - vTopY - 8);
+        ctx.fillStyle = 'rgba(40,20,35,0.65)';
+        for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(vx + Math.sin(i) * 6, vTopY - 6 - i * 7, 6 + i * 1.6, 0, Math.PI * 2); ctx.fill(); }
+
+        ctx.fillStyle = '#0d0611'; ctx.fillRect(0, H * 0.72, W, H * 0.28);
+        ctx.fillStyle = '#170a1e';
+        [[6, 14], [22, 20], [40, 10], [58, 24], [100, 16], [120, 22], [140, 12], [164, 18]].forEach(([bx, bh]) => {
+          ctx.fillRect(bx, H * 0.72 - bh, 10, bh);
+          ctx.clearRect(bx + (Math.random() < 0.5 ? 0 : 6), H * 0.72 - bh, 4, 3);
+        });
+
+        ctx.strokeStyle = intense ? '#ff5a2a' : '#ff8a3f'; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        let cx = 0, cy = H * 0.86; ctx.moveTo(cx, cy);
+        while (cx < W) { cx += 10 + Math.random() * 8; cy += (Math.random() - 0.5) * 6; ctx.lineTo(cx, cy); }
+        ctx.stroke();
+
+        ctx.fillStyle = '#0a0512';
+        for (let i = 0; i < 7; i++) {
+          const fx = 10 + Math.random() * (W - 20), fy = H * 0.86 + Math.random() * 6;
+          ctx.fillRect(fx, fy, 1, 3); ctx.fillRect(fx - 1, fy + 3, 3, 1);
+        }
+      }
+
+
+      const META = {
+        professor: { label: '教授派', emoji: '🎓', varc: '--cyan' },
+        religion: { label: '宗教派', emoji: '🙏', varc: '--religion' },
+        merchant: { label: '商人派', emoji: '💰', varc: '--merchant' },
+        ai: { label: 'AI派', emoji: '🤖', varc: '--ai' },
+        netizen: { label: '網友派', emoji: '🌐', varc: '--netizen' },
+        military: { label: '軍事派', emoji: '🎖️', varc: '--military' },
+        awakened: { label: '覺醒者派', emoji: '🧿', varc: '--awakened' }
+      };
+
+      const NPC_NAMES = {
+        professor: ['李教授', '退休院士', '圖書館員'],
+        religion: ['虔誠信徒', '神秘教主', '修女'],
+        merchant: ['股票分析師', '地產大亨', '網拍賣家'],
+        ai: ['聊天機器人', '演算法工程師', '智慧音箱'],
+        netizen: ['鄉民甲', '直播主', '論壇版主'],
+        military: ['海巡署觀測員', '退役將軍', '國防部發言人'],
+        awakened: ['數位覺醒者', '雲端修行者', '量子薩滿']
+      };
+      const NPC_QUESTIONS = {
+        professor: ['大師，您覺得以前的經驗還有用嗎？', '您覺得會不會有新的做法出現？'],
+        religion: ['大師，您有感應到什麼特別的事嗎？', '您是不是被選中的人？'],
+        merchant: ['大師，接下來哪裡有機會賺錢？', '現在該加碼還是該收手？'],
+        ai: ['大師，接下來該怎麼做？', '我要怎麼變得更聰明？'],
+        netizen: ['大師，明天世界还会好好的嗎？', '這件事會不會又是一場鬧劇？'],
+        military: ['大師，我們該不該提高戒備？', '現在是該撤退還是駐守？'],
+        awakened: ['大師，你也感覺到「連結」了嗎？', '我要如何上傳我的意識？']
+      };
+
+      const INTERP = {
+        professor: {
+          up: ['教授瞪大眼睛。', '「往上看……', '他是說道理都寫在天上了！」', '台下瘋狂抄筆記。'],
+          down: ['教授推了推眼鏡。', '「往下看……', '這是要我們腳踏實地做研究吧。」', '（勉強寫進論文）'],
+          left: ['教授激動地站起來。', '「往左看！', '他是要我們記住以前的教訓啊！」', '（掌聲雷動）'],
+          right: ['教授愣了兩秒。', '「往右看……', '大概是說道理以後也一樣有用吧？」', '（半信半疑點頭）']
+        },
+        religion: {
+          up: ['信徒當場跪下大喊。', '「他看向天空了！', '這是神在跟他說話！」', '（現場開始唱聖歌）'],
+          down: ['信徒喃喃自語。', '「他往下看……', '是在心疼我們這些凡人嗎？」', '（感動落淚）'],
+          left: ['信徒若有所思。', '「往左看是要我們懺悔吧……', '阿彌陀佛。」'],
+          right: ['信徒眼神發亮。', '「他看到未來了！', '那裡一定很美好！」']
+        },
+        merchant: {
+          right: ['商人立刻掏出手機。', '「看右邊……', '是要我們趕快卡位吧！', '全部買進！」'],
+          down: ['商人蹲下摸摸地板。', '「腳踏實地……', '他是要我們別亂投機啦！」'],
+          up: ['商人皺眉想了想。', '「看天上……', '該不會是說要投資衛星吧？」', '（先掛單再說）'],
+          left: ['商人翻出舊帳本。', '「回頭看……', '是要參考以前賺錢的方法嗎？', '高明！」']
+        },
+        ai: {
+          up: ['AI的燈光閃了一下。', '「偵測到抬頭動作。', '正在下載：宇宙等級的答案……」'],
+          down: ['AI瘋狂運轉風扇。', '「偵測到低頭動作。', '正在下載：地底等級的答案……」'],
+          left: ['AI螢幕跑起資料。', '「偵測到回頭動作。', '正在讀取：很久以前的紀錄……」'],
+          right: ['AI發出警示音。', '「偵測到前望動作。', '正在生成：未來的唯一解答！」']
+        },
+        netizen: {
+          down: ['網友馬上截圖。', '「他往下看！！', '地底是不是要出事了？？', '快跑啊！！」', '（已轉發 87 萬次）'],
+          up: ['網友狂刷留言。', '「往上看是什麼意思啦——', '是要我們搬去外太空嗎？」', '（衝上熱搜第一）'],
+          left: ['網友挖出十年前的舊發言。', '「他回頭看……', '該不會是要翻案吧？」', '（考古文突然爆紅）'],
+          right: ['網友瘋狂分享。', '「往右看＝看好未來，', '跟著大師準沒錯！」', '（迷因圖已經出現 200 張）']
+        },
+        military: {
+          right: ['觀測員立正敬禮。', '「向右看……', '是要我們主動出擊嗎！', '是！長官！」'],
+          down: ['觀測員蹲下觀察地面。', '「向下看……', '是要我們就地建立防線嗎！', '了解！」'],
+          up: ['觀測員仰頭警戒天空。', '「向上看……', '該不會是要我們注意空襲吧？」', '（立刻調高戒備等級）'],
+          left: ['觀測員翻開作戰紀錄。', '「回頭看……', '是要參考以前的演習資料嗎？', '高招！」']
+        },
+        awakened: {
+          up: ['覺醒者雙手合十。', '「向上看……', '他在連接更高的頻率！', '我也感覺到了！」'],
+          right: ['覺醒者眼神發光。', '「向右看……', '是要把意識上傳到未來嗎？', '我願意追隨！」'],
+          down: ['覺醒者盤腿坐下。', '「向下看……', '是要我們先接地氣，', '再談覺醒嗎？」'],
+          left: ['覺醒者陷入回憶。', '「回頭看……', '是要我們先放下過去的自己嗎？', '原來如此……」']
+        }
+      };
+
+      const TICKER = {
+        professor: { up: '《自然》期刊：大師抬頭看星星，學者們連夜開會', down: '研討會緊急加開：大師「向下看」被列為研究重點', left: '教科書寫著：大師「回頭一看」證實了老道理', right: '教授聯名投書：大師的「向右看」代表道理不會過時' },
+        religion: { up: '全球教會直播：目睹大師抬頭那一刻', down: '信眾集資蓋廟：紀念大師「低頭」的慈悲', left: '教義新增一章：大師的「回頭」要世人反省', right: '預言更新：大師已經看到美好的未來' },
+        merchant: { up: '航太股全面漲停：因為大師抬頭看了天空', down: '建商跟進大師「腳踏實地」推出新建案', left: '分析師報告：大師的「回頭」神準預測十年週期', right: '華爾街日報：大師「向右看」讓散戶全部轉單' },
+        ai: { up: '某AI因為學習大師「抬頭」而當機', down: '工程師警告：大師的「低頭」數據太深奧，AI讀不懂', left: 'AI把大師的「回頭」寫進下一代模型', right: '矽谷快訊：AI瘋狂分析大師「向右看」的每一幀' },
+        netizen: { up: '迷因瘋傳：大師抬頭的照片被做成十萬張梗圖', down: '熱搜第一：#大師往下看　全網求解答', left: '網友挖出十年前舊發言，意外洗白', right: '全網刷屏：「向右看」變成年度流行動作' },
+        military: { right: '國防部宣布：全軍進入「向右看」戰備狀態', down: '軍方緊急演習：全面採用「向下看」防禦姿態', up: '空軍：因大師抬頭，全面加開空中巡邏', left: '軍史館：大師的「回頭」被列入經典戰術教材' },
+        awakened: { up: '雲端修行者集體宣布「連結成功」', right: '覺醒者社群瘋傳：意識上傳只差臨門一腳', down: '覺醒論壇熱議：先接地氣才能真正覺醒', left: '覺醒者新書《放下過去的自己》熱銷' }
+      };
+
+/* ===================================================================
+   NEW — Tilt Maze
+   =================================================================== */
+/* =====================================================================
+   TILT MAZE — 思想重力場
+   ---------------------------------------------------------------------
+   The four directions no longer *are* the answer; they tilt the plane the
+   answer rolls across. Everything the player does is still four buttons.
+
+   Layers, in the order they appear below:
+     1. state + the standing information panels (ported look, new numbers)
+     2. levels (hand-authored for the story, generated for endless)
+     3. the engine: tilt spring -> gravity -> ball -> tiles -> hole
+     4. story flow: street -> field -> theater
+     5. endless flow: escalating levels -> arcade GAME OVER report
+   ===================================================================== */
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const stage = $('stage'), stageHint = $('stageHint'), npcTok = $('npcTok'), playerTok = $('playerTok');
+const bubble = $('bubble'), bubbleTag = $('bubbleTag'), bubbleText = $('bubbleText');
+const arenaWrap = $('arenaWrap'), arenaBoard = $('arenaBoard'), arena = $('arena'), arenaCap = $('arenaCap');
+const clockFill = $('clockFill'), clockLabel = $('clockLabel'), clockRight = $('clockRight');
+const influenceNum = $('influenceNum'), scoreLabel = $('scoreLabel');
+const factionsPanel = $('factionsPanel'), newsList = $('newsList'), tickerTrack = $('tickerTrack');
+const factionCard = $('factionCard'), newsCard = $('newsCard'), footerHint = $('footerHint');
+const overlay = $('overlay'), theater = $('theater'), theaterName = $('theaterName');
+const theaterCaption = $('theaterCaption'), theaterQuote = $('theaterQuote'), theaterGain = $('theaterGain');
+const mainSprite = $('mainSprite'), iconSprite = $('iconSprite'), viralTag = $('viralTag');
+const continueBtn = $('continueBtn'), flash = $('flash');
+const reportOverlay = $('reportOverlay'), reportCard = $('reportCard'), reportNote = $('reportNote');
+const startScreen = $('startScreen');
+const dUp = $('dUp'), dDown = $('dDown'), dLeft = $('dLeft'), dRight = $('dRight');
+const DPAD = { up: dUp, down: dDown, left: dLeft, right: dRight };
+
+const STREET_CELL = 4, ICON_CELL = 7;
+const FACTIONS = ['professor', 'religion', 'merchant', 'ai', 'netizen'];
+
+/* ---------- STATE ---------- */
+let chapter = 1, day = 1;                 // the record header wants these
+let influence = 0;
+let trust = {}; FACTIONS.forEach(f => trust[f] = 20);
+let mode = 'story';                       // 'story' | 'endless'
+let currentNPC = null, storyIndex = 0;
+let endless = null;
+let pendingAction = null;
+
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const randInt = (a, b) => Math.floor(a + Math.random() * (b - a + 1));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+/* ---------- STANDING INFORMATION ---------- */
+function renderFactionPanel() {
+  factionsPanel.style.setProperty('--fcols', FACTIONS.length);
+  factionsPanel.innerHTML = FACTIONS.map(f => {
+    const m = META[f], v = Math.round(trust[f]);
+    return `<div class="faction">
+      <div class="icon">${m.emoji}</div>
+      <div class="name">${m.label}</div>
+      <div class="track"><div class="fill" style="width:${v}%;background:var(${m.varc})"></div></div>
+      <div class="pct">${v}%</div>
+    </div>`;
+  }).join('');
+}
+
+let newsSeq = 0;
+function pushNews(text) {
+  newsSeq++;
+  const mins = 8 * 60 + newsSeq * 37;
+  const clock = `${String(Math.floor(mins / 60) % 24).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+  const el = document.createElement('div');
+  el.className = 'news-item';
+  el.innerHTML = `<span class="nt">觀測第 ${day} 日 · ${clock}</span>${text}`;
+  newsList.prepend(el);
+  while (newsList.children.length > 12) newsList.lastChild.remove();
+}
+function pushTicker(text) {
+  tickerTrack.textContent = text;
+  tickerTrack.style.animation = 'none'; void tickerTrack.offsetWidth;
+  tickerTrack.style.animation = 'scroll 18s linear infinite';
+}
+function updateHUD() {
+  influenceNum.textContent = mode === 'endless'
+    ? endless.score.toLocaleString()
+    : influence.toLocaleString();
+}
+
+/* =====================================================================
+   2. LEVELS
+   ---------------------------------------------------------------------
+   Legend
+     #  wall        .  floor       I  ice (barely any friction)
+     G  goo (heavy drag)           O  hole        o  ball start
+     S  latch switch (crossing it flips every door)
+     H  hold plate  (doors open only while a ball rests on it)
+     D  door, closed by default    d  door, open by default
+   ===================================================================== */
+const STORY_LEVELS = [
+  { /* 1 — nothing but gravity */
+    name: '第一課：讓它自己滾過去', time: 55, grid: [
+      '###########',
+      '#.........#',
+      '#.o.......#',
+      '#.........#',
+      '#.......O.#',
+      '#.........#',
+      '###########']
+  },
+  { /* 2 — a wall means you must think in two moves */
+    name: '第二課：直線走不到的地方', time: 55, grid: [
+      '###########',
+      '#.o.......#',
+      '#....###..#',
+      '#....#....#',
+      '#....#.O..#',
+      '#....#....#',
+      '###########']
+  },
+  { /* 3 — ice: commitment */
+    name: '第三課：停不下來的想法', time: 50, grid: [
+      '#############',
+      '#.o.........#',
+      '#.IIIIIIII..#',
+      '#.IIIIIIII..#',
+      '#.IIIIIIII.O#',
+      '#...........#',
+      '#############']
+  },
+  { /* 4 — goo: the cost of a bad line */
+    name: '第四課：陷進去的思路', time: 55, grid: [
+      '#############',
+      '#.o..GGG....#',
+      '#....GGG....#',
+      '#..###GG###.#',
+      '#..#..GG..#.#',
+      '#..#.O....#.#',
+      '#############']
+  },
+  { /* 5 — the switch: order matters */
+    name: '第五課：先開門，再進門', time: 60, grid: [
+      '#############',
+      '#.o...#.....#',
+      '#.....#..O..#',
+      '#..S..D.....#',
+      '#.....#.....#',
+      '#.....#.....#',
+      '#############']
+  },
+  { /* 6 — two balls share one gravity: the maze has to separate them for you */
+    name: '第六課：兩個念頭同時成立', time: 70, grid: [
+      '##############',
+      '#.o.......O..#',
+      '#....####....#',
+      '#....#..#....#',
+      '#....####....#',
+      '#.o.......O..#',
+      '##############']
+  },
+  { /* 7 — everything at once */
+    name: '第七課：一次想清楚', time: 75, grid: [
+      '###############',
+      '#.o..#...GG...#',
+      '#....#...GG...#',
+      '#.S..D....IIII#',
+      '#....#....IIII#',
+      '#....#.O..IIII#',
+      '###############']
+  }
+];
+
+/* Endless levels are generated, then checked for reachability — an unsolvable
+   room is worse than an easy one. */
+function genLevel(n) {
+  const cols = clamp(11 + Math.floor(n / 3), 11, 17);
+  const rows = clamp(7 + Math.floor(n / 4), 7, 11);
+  const balls = n >= 12 ? 3 : n >= 6 ? 2 : 1;
+
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const g = [];
+    for (let y = 0; y < rows; y++) {
+      let row = '';
+      for (let x = 0; x < cols; x++) row += (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) ? '#' : '.';
+      g.push(row.split(''));
+    }
+    const put = (x, y, ch) => { if (g[y] && g[y][x] && g[y][x] === '.') { g[y][x] = ch; return true; } return false; };
+
+    // walls: short bars rather than noise, so the room stays readable
+    const bars = 1 + Math.min(5, Math.floor(n / 2));
+    for (let i = 0; i < bars; i++) {
+      const len = randInt(2, Math.min(5, cols - 4));
+      const horiz = Math.random() < 0.5;
+      const x = randInt(2, cols - 3), y = randInt(2, rows - 3);
+      for (let k = 0; k < len; k++) put(horiz ? x + k : x, horiz ? y : y + k, '#');
+    }
+    // terrain patches
+    if (n >= 3) for (let i = 0; i < 1 + Math.floor(n / 5); i++) {
+      const ch = Math.random() < 0.55 ? 'I' : 'G';
+      const w = randInt(2, 4), h = randInt(2, 3);
+      const x = randInt(1, cols - 1 - w), y = randInt(1, rows - 1 - h);
+      for (let j = 0; j < h; j++) for (let i2 = 0; i2 < w; i2++) put(x + i2, y + j, ch);
+    }
+
+    // ball / hole placement, forced apart so the level is a journey
+    const free = [];
+    for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++) if (g[y][x] === '.') free.push([x, y]);
+    if (free.length < balls * 4) continue;
+    const spots = [];
+    let ok = true;
+    for (let i = 0; i < balls * 2; i++) {
+      const cand = free.filter(p => spots.every(q => Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) > 3));
+      if (!cand.length) { ok = false; break; }
+      spots.push(pick(cand));
+    }
+    if (!ok) continue;
+    for (let i = 0; i < balls; i++) g[spots[i][1]][spots[i][0]] = 'o';
+    for (let i = 0; i < balls; i++) g[spots[balls + i][1]][spots[balls + i][0]] = 'O';
+
+    const grid = g.map(r => r.join(''));
+    if (!reachable(grid)) continue;
+    return { name: '第 ' + n + ' 關', time: Math.max(14, Math.round(34 - n * 1.3)), grid };
+  }
+  return { name: '第 ' + n + ' 關', time: 30, grid: STORY_LEVELS[0].grid };
+}
+
+/** every ball must be able to reach at least one hole across open tiles */
+function reachable(grid) {
+  const rows = grid.length, cols = grid[0].length;
+  const solid = (x, y) => x < 0 || y < 0 || x >= cols || y >= rows || grid[y][x] === '#';
+  const region = [];
+  for (let y = 0; y < rows; y++) region.push(new Array(cols).fill(-1));
+  let id = 0;
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    if (solid(x, y) || region[y][x] >= 0) continue;
+    const q = [[x, y]]; region[y][x] = id;
+    while (q.length) {
+      const [cx, cy] = q.pop();
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+        const nx = cx + dx, ny = cy + dy;
+        if (!solid(nx, ny) && region[ny][nx] < 0) { region[ny][nx] = id; q.push([nx, ny]); }
+      });
+    }
+    id++;
+  }
+  const holes = new Set(), balls = [];
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    if (grid[y][x] === 'O') holes.add(region[y][x]);
+    if (grid[y][x] === 'o') balls.push(region[y][x]);
+  }
+  return balls.length > 0 && holes.size > 0 && balls.every(b => holes.has(b));
+}
+
+/* =====================================================================
+   3. THE ENGINE
+   ===================================================================== */
+const TILE = 24, BALL_R = 8;
+const GRAV = 940;          // px/s² at full tilt
+const TILT_K = 78, TILT_D = 9.5;   // spring back to level, with a little overshoot
+const REST = 0.42, REST_ICE = 0.62;
+const MU = { '.': 1.15, 'I': 0.12, 'G': 6.4, 'S': 1.15, 'H': 1.15, 'O': 1.15, 'd': 1.15, 'D': 1.15 };
+const SINK_SPEED = 400;    // faster than this and the ball rims out
+
+let field = null;
+const held = { up: false, down: false, left: false, right: false };
+
+function loadLevel(def, onWin, onFail) {
+  const grid = def.grid.map(r => r.split(''));
+  const rows = grid.length, cols = grid[0].length;
+  const balls = [], holes = [];
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const ch = grid[y][x];
+    if (ch === 'o') { balls.push(makeBall(x, y)); grid[y][x] = '.'; }
+    if (ch === 'O') holes.push({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2, gx: x, gy: y });
+  }
+  field = {
+    def, grid, rows, cols, balls, holes,
+    tx: 0, ty: 0, vtx: 0, vty: 0,
+    latched: false, hold: false,
+    time: def.time, timeLeft: def.time,
+    running: false, over: false,
+    tilts: 0, elapsed: 0,
+    onWin, onFail
+  };
+  sizeBoard();
+  arenaWrap.classList.add('on');
+  arenaCap.classList.remove('warn');
+  arenaCap.textContent = def.name;
+  drawField();
+}
+function makeBall(gx, gy) {
+  return { x: gx * TILE + TILE / 2, y: gy * TILE + TILE / 2, vx: 0, vy: 0, r: BALL_R, sunk: 0, tile: gx + ',' + gy };
+}
+
+function sizeBoard() {
+  if (!field) return;
+  const availW = Math.min(560, $('app').clientWidth || 560);
+  const availH = Math.max(220, Math.min(380, window.innerHeight * 0.46));
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cam.w = availW; cam.h = availH; arena._dpr = dpr;
+  arena.width = Math.round(availW * dpr); arena.height = Math.round(availH * dpr);
+  arena.style.width = availW + 'px'; arena.style.height = availH + 'px';
+  fitCamera();
+}
+window.addEventListener('resize', sizeBoard);
+
+function tileAt(gx, gy) {
+  if (!field || gy < 0 || gx < 0 || gy >= field.rows || gx >= field.cols) return '#';
+  return field.grid[gy][gx];
+}
+function doorsOpen() { return field.latched !== field.hold; }   // XOR: latch flips, plate holds
+function isSolid(gx, gy) {
+  const ch = tileAt(gx, gy);
+  if (ch === '#') return true;
+  if (ch === 'D') return !doorsOpen();
+  if (ch === 'd') return doorsOpen();
+  return false;
+}
+
+function stepPhysics(dt) {
+  const f = field;
+  f.elapsed += dt;
+
+  // --- the plane: a spring, not a switch. This is the whole feel of the game. ---
+  const targetX = (held.right ? 1 : 0) - (held.left ? 1 : 0);
+  const targetY = (held.down ? 1 : 0) - (held.up ? 1 : 0);
+  f.vtx += (targetX - f.tx) * TILT_K * dt; f.vtx *= Math.exp(-TILT_D * dt); f.tx += f.vtx * dt;
+  f.vty += (targetY - f.ty) * TILT_K * dt; f.vty *= Math.exp(-TILT_D * dt); f.ty += f.vty * dt;
+  f.tx = clamp(f.tx, -1.15, 1.15); f.ty = clamp(f.ty, -1.15, 1.15);
+  // Released and settled means LEVEL — exactly zero, no residual slope. A board
+  // that keeps a sliver of tilt would quietly forbid whole directions.
+  if (!targetX && Math.abs(f.tx) < 0.005 && Math.abs(f.vtx) < 0.05) { f.tx = 0; f.vtx = 0; }
+  if (!targetY && Math.abs(f.ty) < 0.005 && Math.abs(f.vty) < 0.05) { f.ty = 0; f.vty = 0; }
+
+  // --- hold plates are read before movement, so a door can slam on a ball ---
+  f.hold = f.balls.some(b => !b.sunk && tileAt(Math.floor(b.x / TILE), Math.floor(b.y / TILE)) === 'H');
+
+  f.balls.forEach(b => {
+    if (b.sunk) { b.sunk += dt; return; }
+    const gx = Math.floor(b.x / TILE), gy = Math.floor(b.y / TILE);
+    const ch = tileAt(gx, gy);
+
+    b.vx += GRAV * f.tx * dt;
+    b.vy += GRAV * f.ty * dt;
+    const mu = MU[ch] !== undefined ? MU[ch] : 1.15;
+    const damp = Math.exp(-mu * dt);
+    b.vx *= damp; b.vy *= damp;
+
+    // hole attraction: the rim helps a slow ball and betrays a fast one
+    f.holes.forEach(h => {
+      const dx = h.x - b.x, dy = h.y - b.y, d = Math.hypot(dx, dy);
+      if (d < TILE * 0.55 && d > 0.001) {
+        const pull = 520 * (1 - d / (TILE * 0.55));
+        b.vx += (dx / d) * pull * dt; b.vy += (dy / d) * pull * dt;
+      }
+    });
+
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    collideTiles(b, ch === 'I');
+
+    // latch switches fire once per entry, not once per frame
+    const key = Math.floor(b.x / TILE) + ',' + Math.floor(b.y / TILE);
+    if (key !== b.tile) {
+      b.tile = key;
+      const [nx, ny] = key.split(',').map(Number);
+      if (tileAt(nx, ny) === 'S') { f.latched = !f.latched; blip(); }
+    }
+
+    // sinking
+    f.holes.forEach(h => {
+      if (b.sunk) return;
+      const d = Math.hypot(h.x - b.x, h.y - b.y);
+      const sp = Math.hypot(b.vx, b.vy);
+      if (d < TILE * 0.30 && sp < SINK_SPEED) { b.sunk = 0.0001; b.vx = b.vy = 0; b.sx = h.x; b.sy = h.y; }
+    });
+  });
+
+  collideBalls();
+
+  if (!f.over && f.balls.every(b => b.sunk)) { f.over = 'win'; f.running = false; setTimeout(() => f.onWin(), 620); }
+  else if (!f.over) {
+    f.timeLeft -= dt;
+    if (f.timeLeft <= 0) { f.timeLeft = 0; f.over = 'fail'; f.running = false; setTimeout(() => f.onFail(), 520); }
+  }
+}
+
+function collideTiles(b, icy) {
+  const rest = icy ? REST_ICE : REST;
+  const c0 = Math.floor((b.x - b.r) / TILE), c1 = Math.floor((b.x + b.r) / TILE);
+  const r0 = Math.floor((b.y - b.r) / TILE), r1 = Math.floor((b.y + b.r) / TILE);
+  for (let gy = r0; gy <= r1; gy++) for (let gx = c0; gx <= c1; gx++) {
+    if (!isSolid(gx, gy)) continue;
+    const rx = gx * TILE, ry = gy * TILE;
+    const nx = clamp(b.x, rx, rx + TILE), ny = clamp(b.y, ry, ry + TILE);
+    let dx = b.x - nx, dy = b.y - ny, d = Math.hypot(dx, dy);
+    if (d >= b.r) continue;
+    if (d < 0.0001) {   // dead centre: eject along the shallowest axis
+      const ox = b.x - (rx + TILE / 2), oy = b.y - (ry + TILE / 2);
+      dx = Math.abs(ox) > Math.abs(oy) ? Math.sign(ox) : 0;
+      dy = dx ? 0 : Math.sign(oy) || 1;
+      d = 1;
+    }
+    const ux = dx / d, uy = dy / d, push = b.r - d;
+    b.x += ux * push; b.y += uy * push;
+    const vn = b.vx * ux + b.vy * uy;
+    if (vn < 0) { b.vx -= (1 + rest) * vn * ux; b.vy -= (1 + rest) * vn * uy; }
+  }
+}
+
+function collideBalls() {
+  const bs = field.balls.filter(b => !b.sunk);
+  for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
+    const a = bs[i], b = bs[j];
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), min = a.r + b.r;
+    if (d >= min || d < 0.0001) continue;
+    const ux = dx / d, uy = dy / d, push = (min - d) / 2;
+    a.x -= ux * push; a.y -= uy * push; b.x += ux * push; b.y += uy * push;
+    const va = a.vx * ux + a.vy * uy, vb = b.vx * ux + b.vy * uy;
+    if (va - vb <= 0) continue;
+    const e = 0.85, imp = (1 + e) * (va - vb) / 2;
+    a.vx -= imp * ux; a.vy -= imp * uy; b.vx += imp * ux; b.vy += imp * uy;
+  }
+}
+
+/* =====================================================================
+   RENDER — the maze is drawn as light, in real 3D
+   ---------------------------------------------------------------------
+   The board is a physical tray held at a fixed camera angle. Tilting rotates
+   the tray itself about its own two axes, so walls lean, the far rim rises,
+   and the ball's shadow separates from the ball — the tilt is legible from
+   the picture alone, with no gauge anywhere on screen.
+
+   Nothing here is a texture: walls are extruded volumes drawn as luminous
+   edges over near-black faces, the way the reference art reads.
+   ===================================================================== */
+const CAM = { yaw: -0.60, pitch: 1.02, dist: 2600, tiltMax: 0.30 };
+const WALL_H = 15, TRAY_D = 12;
+const LINE = {
+  edge: 'rgba(214,240,255,0.95)', edgeSoft: 'rgba(150,205,240,0.34)',
+  face: 'rgba(120,180,225,0.055)', faceTop: 'rgba(150,205,240,0.10)',
+  floor: '#070c11', tray: 'rgba(180,220,250,0.55)',
+  ice: 'rgba(63,230,224,0.85)', iceFace: 'rgba(63,230,224,0.10)',
+  goo: 'rgba(126,240,168,0.75)', gooFace: 'rgba(60,150,95,0.16)',
+  hole: 'rgba(126,240,168,0.95)', plate: 'rgba(185,139,255,0.85)',
+  door: 'rgba(255,140,66,0.9)', ball: '#eaf6ff'
+};
+
+let cam = { S: 1, ox: 0, oy: 0, w: 0, h: 0 };
+
+/** board space (x, y in physics px; z up) -> screen */
+function project(x, y, z) {
+  const f = field;
+  let px = x - (f.cols * TILE) / 2, py = y - (f.rows * TILE) / 2, pz = z;
+
+  // the tray's own tilt, about its own axes — the same numbers gravity uses
+  const A = f.ty * CAM.tiltMax, B = f.tx * CAM.tiltMax;
+  let ty2 = py * Math.cos(A) + pz * Math.sin(A);
+  let tz2 = pz * Math.cos(A) - py * Math.sin(A);
+  let tx2 = px * Math.cos(B) + tz2 * Math.sin(B);
+  tz2 = tz2 * Math.cos(B) - px * Math.sin(B);
+
+  // camera: yaw, then pitch, then a gentle perspective
+  const cy = Math.cos(CAM.yaw), sy = Math.sin(CAM.yaw);
+  const X = tx2 * cy - ty2 * sy, Y = tx2 * sy + ty2 * cy;
+  const cp = Math.cos(CAM.pitch), sp = Math.sin(CAM.pitch);
+  const sY = Y * cp - tz2 * sp;
+  const depth = Y * sp + tz2 * cp;
+  const k = CAM.dist / (CAM.dist + depth);
+  return { x: X * k * cam.S + cam.ox, y: sY * k * cam.S + cam.oy, d: depth, k };
+}
+
+/** fit the untilted tray into the canvas once per level / resize */
+function fitCamera() {
+  const f = field, W = f.cols * TILE, H = f.rows * TILE;
+  const keepTx = f.tx, keepTy = f.ty;
+  f.tx = f.ty = 0;
+  cam.S = 1; cam.ox = 0; cam.oy = 0;
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  [0, W].forEach(x => [0, H].forEach(y => [-TRAY_D, WALL_H].forEach(z => {
+    const p = project(x, y, z);
+    x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x);
+    y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y);
+  })));
+  const m = 16;
+  // the extra headroom keeps a tilted tray from clipping at the edges
+  cam.S = Math.min((cam.w - m * 2) / (x1 - x0), (cam.h - m * 2) / (y1 - y0)) * 0.88;
+  cam.ox = cam.w / 2 - ((x0 + x1) / 2) * cam.S;
+  cam.oy = cam.h / 2 - ((y0 + y1) / 2) * cam.S;
+  f.tx = keepTx; f.ty = keepTy;
+}
+
+/** merge wall tiles into slabs, so the maze reads as bars of light, not cells */
+function wallSlabs(pred) {
+  const f = field, done = [];
+  for (let y = 0; y < f.rows; y++) done.push(new Array(f.cols).fill(false));
+  const out = [];
+  for (let y = 0; y < f.rows; y++) for (let x = 0; x < f.cols; x++) {
+    if (done[y][x] || !pred(f.grid[y][x])) continue;
+    let w = 1;
+    while (x + w < f.cols && !done[y][x + w] && pred(f.grid[y][x + w])) w++;
+    let h = 1;
+    grow: while (y + h < f.rows) {
+      for (let i = 0; i < w; i++) if (done[y + h][x + i] || !pred(f.grid[y + h][x + i])) break grow;
+      h++;
+    }
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) done[y + j][x + i] = true;
+    out.push({ x: x * TILE, y: y * TILE, w: w * TILE, h: h * TILE });
+  }
+  return out;
+}
+
+function poly(ctx, pts, fill, stroke, width, glow) {
+  ctx.beginPath();
+  pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) {
+    ctx.strokeStyle = stroke; ctx.lineWidth = width || 1.2;
+    if (glow) { ctx.shadowColor = stroke; ctx.shadowBlur = glow; }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+}
+
+/** an extruded box from z=z0 to z=z1, drawn back-to-front */
+function drawBox(ctx, r, z0, z1, opt) {
+  const c = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
+  const top = c.map(([x, y]) => project(x, y, z1));
+  const bot = c.map(([x, y]) => project(x, y, z0));
+  // side walls, far ones first
+  const sides = [0, 1, 2, 3].map(i => {
+    const j = (i + 1) % 4;
+    return { i, j, d: (top[i].d + top[j].d) / 2 };
+  }).sort((a, b) => b.d - a.d);
+  sides.forEach(({ i, j }) => {
+    poly(ctx, [top[i], top[j], bot[j], bot[i]], opt.face, opt.edgeSoft, 1, 0);
+  });
+  poly(ctx, top, opt.faceTop, opt.edge, opt.width || 1.4, opt.glow || 8);
+}
+
+function drawField() {
+  const f = field, ctx = arena.getContext('2d');
+  const dpr = arena._dpr || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cam.w, cam.h);
+  ctx.lineJoin = 'round';
+
+  const W = f.cols * TILE, H = f.rows * TILE;
+  const rectAt = (x, y, w, h, z) => [
+    project(x, y, z), project(x + w, y, z), project(x + w, y + h, z), project(x, y + h, z)
+  ];
+
+  // ---- the tray: a slab of dark glass with a lit rim ----
+  drawBox(ctx, { x: 0, y: 0, w: W, h: H }, -TRAY_D, 0,
+    { face: 'rgba(90,140,180,0.05)', edgeSoft: 'rgba(150,205,240,0.22)', faceTop: LINE.floor, edge: LINE.tray, width: 1.6, glow: 10 });
+
+  // ---- terrain panels, flush with the floor ----
+  wallSlabs(ch => ch === 'I').forEach(r => {
+    poly(ctx, rectAt(r.x, r.y, r.w, r.h, 0.4), LINE.iceFace, LINE.ice, 1, 6);
+    for (let gx = r.x + TILE * 0.5; gx < r.x + r.w; gx += TILE) {
+      const a = project(gx, r.y + 3, 0.4), b = project(gx, r.y + r.h - 3, 0.4);
+      poly(ctx, [a, b], null, 'rgba(63,230,224,0.22)', 1, 0);
+    }
+  });
+  wallSlabs(ch => ch === 'G').forEach(r => {
+    poly(ctx, rectAt(r.x, r.y, r.w, r.h, 0.4), LINE.gooFace, LINE.goo, 1, 5);
+    for (let gy = r.y + TILE * 0.5; gy < r.y + r.h; gy += TILE * 0.5) {
+      const a = project(r.x + 3, gy, 0.4), b = project(r.x + r.w - 3, gy, 0.4);
+      poly(ctx, [a, b], null, 'rgba(126,240,168,0.14)', 1, 0);
+    }
+  });
+
+  // ---- plates ----
+  for (let y = 0; y < f.rows; y++) for (let x = 0; x < f.cols; x++) {
+    const ch = f.grid[y][x];
+    if (ch !== 'S' && ch !== 'H') continue;
+    const on = ch === 'S' ? f.latched : f.hold;
+    const col = on ? 'rgba(63,230,224,0.95)' : LINE.plate;
+    poly(ctx, rectAt(x * TILE + 3, y * TILE + 3, TILE - 6, TILE - 6, 0.5),
+      on ? 'rgba(63,230,224,0.18)' : 'rgba(185,139,255,0.07)', col, 1.2, on ? 14 : 6);
+    poly(ctx, rectAt(x * TILE + 8, y * TILE + 8, TILE - 16, TILE - 16, 0.6), null, col, 1, on ? 10 : 0);
+  }
+
+  // ---- holes: a ring of light with a void inside ----
+  f.holes.forEach(h => {
+    const ring = [];
+    for (let i = 0; i <= 22; i++) {
+      const a = (i / 22) * Math.PI * 2;
+      ring.push(project(h.x + Math.cos(a) * 10, h.y + Math.sin(a) * 10, 0.6));
+    }
+    poly(ctx, ring, 'rgba(0,0,0,0.92)', LINE.hole, 1.6, 14);
+    const inner = [];
+    for (let i = 0; i <= 22; i++) {
+      const a = (i / 22) * Math.PI * 2;
+      inner.push(project(h.x + Math.cos(a) * 5, h.y + Math.sin(a) * 5, -3));
+    }
+    poly(ctx, inner, 'rgba(0,0,0,1)', 'rgba(126,240,168,0.25)', 1, 0);
+  });
+
+  // ---- everything that stands up, sorted back to front ----
+  const items = [];
+  wallSlabs(ch => ch === '#').forEach(r => {
+    const c = project(r.x + r.w / 2, r.y + r.h / 2, WALL_H);
+    items.push({
+      d: c.d, draw: () => drawBox(ctx, r, 0, WALL_H,
+        { face: LINE.face, edgeSoft: LINE.edgeSoft, faceTop: LINE.faceTop, edge: LINE.edge, width: 1.35, glow: 9 })
+    });
+  });
+  for (let y = 0; y < f.rows; y++) for (let x = 0; x < f.cols; x++) {
+    const ch = f.grid[y][x];
+    if (ch !== 'D' && ch !== 'd') continue;
+    const shut = isSolid(x, y);
+    const r = { x: x * TILE, y: y * TILE, w: TILE, h: TILE };
+    const c = project(r.x + TILE / 2, r.y + TILE / 2, WALL_H);
+    items.push({
+      d: c.d, draw: () => {
+        if (shut) {
+          drawBox(ctx, r, 0, WALL_H, {
+            face: 'rgba(255,140,66,0.09)', edgeSoft: 'rgba(255,140,66,0.35)',
+            faceTop: 'rgba(255,140,66,0.14)', edge: LINE.door, width: 1.3, glow: 12
+          });
+        } else {
+          // an open gate leaves its posts behind, so the player can see it opened
+          [[r.x + 1, 3], [r.x + TILE - 3, 3]].forEach(([px, w]) =>
+            drawBox(ctx, { x: px, y: r.y, w, h: TILE }, 0, WALL_H * 0.55, {
+              face: 'rgba(255,140,66,0.05)', edgeSoft: 'rgba(255,140,66,0.18)',
+              faceTop: 'rgba(255,140,66,0.06)', edge: 'rgba(255,140,66,0.4)', width: 1, glow: 4
+            }));
+        }
+      }
+    });
+  }
+
+  f.balls.forEach(b => {
+    if (b.sunk) {
+      const k = Math.max(0, 1 - b.sunk * 4);
+      if (k <= 0) return;
+      const p = project(b.sx, b.sy, -2);
+      items.push({
+        d: p.d, draw: () => {
+          ctx.fillStyle = `rgba(234,246,255,${k})`;
+          ctx.beginPath(); ctx.arc(p.x, p.y, b.r * k * cam.S * p.k, 0, 7); ctx.fill();
+        }
+      });
+      return;
+    }
+    const p = project(b.x, b.y, b.r);
+    const sh = project(b.x, b.y, 0.5);
+    items.push({
+      d: p.d, draw: () => {
+        // contact shadow first — it is what tells you the ball is off the floor
+        const rr = b.r * cam.S * p.k;
+        ctx.save();
+        ctx.translate(sh.x, sh.y); ctx.scale(1, 0.5);
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath(); ctx.arc(0, 0, rr * 1.05, 0, 7); ctx.fill();
+        ctx.restore();
+
+        const g = ctx.createRadialGradient(p.x - rr * 0.35, p.y - rr * 0.45, rr * 0.1, p.x, p.y, rr);
+        g.addColorStop(0, '#ffffff');
+        g.addColorStop(0.35, '#cfeaff');
+        g.addColorStop(0.75, '#5f93b8');
+        g.addColorStop(1, '#16303f');
+        ctx.fillStyle = g;
+        ctx.shadowColor = 'rgba(180,230,255,0.8)'; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, 7); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.beginPath(); ctx.arc(p.x - rr * 0.3, p.y - rr * 0.4, rr * 0.22, 0, 7); ctx.fill();
+      }
+    });
+  });
+
+  items.sort((a, b) => b.d - a.d).forEach(it => it.draw());
+}
+
+function updateClock() {
+  const f = field;
+  const pct = clamp(f.timeLeft / f.time, 0, 1) * 100;
+  clockFill.style.width = pct + '%';
+  clockFill.classList.toggle('calm', pct > 33);
+  clockRight.textContent = f.timeLeft.toFixed(1) + ' 秒';
+}
+
+let lastT = 0, acc = 0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (now - lastT) / 1000 || 0); lastT = now;
+  if (!field) return;
+  if (field.running) {
+    acc += dt;
+    while (acc >= 1 / 240) { stepPhysics(1 / 240); acc -= 1 / 240; }
+    updateClock();
+  }
+  drawField();
+}
+requestAnimationFrame(loop);
+
+function blip() { /* hook for sfx once the prototype gets audio */ }
+
+/* ---------- input ---------- */
+function setInputEnabled(on) {
+  Object.values(DPAD).forEach(b => b.disabled = !on);
+  if (!on) Object.keys(held).forEach(k => { held[k] = false; DPAD[k].classList.remove('held'); });
+}
+function press(dir, on) {
+  // A RELEASE is always honoured. Gating it the way presses are gated is how a
+  // direction gets stuck down across a level change: the board then has a
+  // permanent slope, and tilting the other way can only cancel it, never
+  // reverse it — the upper holes become unreachable.
+  if (on && (!field || !field.running || DPAD[dir].disabled)) return;
+  if (held[dir] === on) return;
+  held[dir] = on;
+  DPAD[dir].classList.toggle('held', on);
+  if (on) field.tilts++;
+}
+const KEYMAP = {
+  ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+  w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right'
+};
+addEventListener('keydown', e => { const d = KEYMAP[e.key]; if (d) { e.preventDefault(); press(d, true); } });
+addEventListener('keyup', e => { const d = KEYMAP[e.key]; if (d) { e.preventDefault(); press(d, false); } });
+/* A held direction that never gets released would be indistinguishable from a
+   permanent slope in that direction, so releases are caught at the window and
+   on focus loss, not only on the button that started them. */
+let padDir = null;
+Object.entries(DPAD).forEach(([dir, btn]) => {
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (padDir) press(padDir, false);
+    padDir = dir; press(dir, true);
+  });
+});
+function releasePad() { if (padDir) { press(padDir, false); padDir = null; } }
+addEventListener('pointerup', releasePad);
+addEventListener('pointercancel', releasePad);
+addEventListener('blur', () => { releasePad(); Object.keys(held).forEach(k => press(k, false)); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { releasePad(); Object.keys(held).forEach(k => press(k, false)); }
+});
+
+/* =====================================================================
+   4. STORY FLOW
+   ===================================================================== */
+function beginEncounter() {
+  mode = 'story';
+  scoreLabel.textContent = '影響力指數（協會認證）';
+  factionCard.style.display = ''; newsCard.style.display = '';
+  arenaWrap.classList.remove('on');
+  stage.classList.remove('tucked', 'gone');
+  clockLabel.textContent = '頓悟窗口';
+  clockFill.style.width = '0%';
+  clockRight.textContent = '— —';
+  footerHint.textContent = '按住方向鍵讓場地持續傾斜，放開後會慢慢回正。';
+
+  currentNPC = { faction: pick(FACTIONS) };
+  currentNPC.name = pick(NPC_NAMES[currentNPC.faction]);
+  currentNPC.question = pick(NPC_QUESTIONS[currentNPC.faction]);
+
+  stageHint.textContent = '走在街上，遇見了……';
+  npcTok.style.opacity = 0; bubble.style.opacity = 0;
+  playerTok.style.left = '5%';
+  drawPlayer(playerTok, 'neutral', STREET_CELL);
+  drawNPC(npcTok, currentNPC.faction, STREET_CELL);
+  npcTok.style.left = '55%';
+  setTimeout(() => { playerTok.style.left = '38%'; setTimeout(showEncounter, 1000); }, 200);
+}
+
+function showEncounter() {
+  npcTok.style.opacity = 1;
+  bubbleTag.textContent = META[currentNPC.faction].label;
+  bubbleTag.style.color = `var(${META[currentNPC.faction].varc})`;
+  bubbleText.textContent = currentNPC.question;
+  bubble.style.opacity = 1;
+  stageHint.textContent = currentNPC.name + ' 向你搭話了……';
+  setTimeout(openField, 1700);
+}
+
+/* The field is not a menu the player opens — it is what the street turns into
+   the moment the master starts thinking about the question. */
+function openField() {
+  bubble.style.opacity = 0;
+  stage.classList.add('tucked');
+  stageHint.textContent = '（你沒有回答。你只是——想了一下。）';
+  const def = STORY_LEVELS[storyIndex % STORY_LEVELS.length];
+  loadLevel(def, storyWin, storyFail);
+  setTimeout(() => {
+    field.running = true;
+    setInputEnabled(true);
+    arenaCap.textContent = def.name;
+  }, 700);
+}
+
+function storyWin() {
+  setInputEnabled(false);
+  const stats = { secs: field.elapsed, tilts: field.tilts, left: field.timeLeft };
+  storyIndex++;
+  arenaCap.textContent = '……落定了。';
+  setTimeout(() => { arenaWrap.classList.remove('on'); stage.classList.remove('tucked'); runInsightTheater(stats); }, 700);
+}
+
+function storyFail() {
+  setInputEnabled(false);
+  const stats = { secs: field.elapsed, tilts: field.tilts, left: 0 };
+  storyIndex++;   // no retry: the moment has passed, the master moves on
+  arenaCap.classList.add('warn');
+  arenaCap.textContent = '窗口關閉了。';
+  setTimeout(() => { arenaWrap.classList.remove('on'); stage.classList.remove('tucked'); runFlatteryTheater(stats); }, 900);
+}
+
+/* ---------- the record ---------- */
+const RAW_WIN = s => `對象在原地站立 ${s.secs.toFixed(1)} 秒，期間重心左右微調 ${s.tilts} 次，最後視線向右偏移約 0.9 秒。未發一語。`;
+const RAW_FAIL = s => `對象在原地站立 ${s.secs.toFixed(1)} 秒，期間重心左右微調 ${s.tilts} 次，隨後恢復步行。未發一語。`;
+
+const FLATTERY = {
+  professor: ['教授鼓了鼓掌。', '「嗯……很有意思。」', '（其實完全沒看懂，但不能承認）', '（回家後決定再讀一次自己的論文）'],
+  religion: ['信徒虔誠地點頭。', '「大師的沉默，也是一種啟示。」', '（回去照樣唱原本的聖歌）'],
+  merchant: ['商人熱情地握手。', '「厲害厲害，果然是大師！」', '（默默把手機收起來，繼續看原本的線圖）'],
+  ai: ['AI 的燈光平穩地閃了兩下。', '「輸入已接收。信心分數：0.11。」', '「正在歸檔至：待理解資料夾。」'],
+  netizen: ['網友拍了一張，猶豫了一下。', '「雖然不太懂，但感覺很強欸。」', '（貼文按讚數：4）']
+};
+const FLATTER_TICKER = {
+  professor: '學界低調表示：大師本次的展示「仍待進一步解讀」',
+  religion: '教會公告：大師的沉默屬於「更高層次的訊息」，暫不解釋',
+  merchant: '市場無明顯波動，分析師稱「大師今日並未發出訊號」',
+  ai: '某 AI 將本次觀測標記為「資料不足」，工程師表示正常',
+  netizen: '#大師今天有點安靜　登上熱搜第 47 名'
+};
+
+let recordSeq = 0;
+function recordHtml(school, who, raw, lines, gain) {
+  recordSeq++;
+  const id = `TR-${chapter}-${String(recordSeq).padStart(4, '0')}`;
+  const mins = 8 * 60 + recordSeq * 37 + day * 11;
+  const clock = `${String(Math.floor(mins / 60) % 24).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+  return `<div class="rec">
+    <div class="rec-top"><span>${id}</span><span class="rt">觀測第 ${day} 日 · ${clock}</span></div>
+    <div class="rec-by">提交單位　${school} · ${who}</div>
+    <div class="rec-sec">原始觀測</div>
+    <div class="rec-raw">${raw}</div>
+    <div class="rec-sec">該單位之推定</div>
+    <div class="rec-body">${lines.join('<br>')}</div>
+    <div class="rec-foot"><span>核定影響力增額</span><b>+${gain}</b></div>
+  </div>`;
+}
+
+function portraitCell() {
+  const byH = Math.floor((window.innerHeight * 0.34) / PORT.H);
+  const byW = Math.floor(Math.min(400, window.innerWidth * 0.78) / PORT.W);
+  return Math.max(2, Math.min(4, byH, byW));
+}
+function openTheaterShell() {
+  theaterQuote.classList.add('hidden-el'); theaterQuote.innerHTML = '';
+  theaterGain.classList.add('hidden-el');
+  continueBtn.classList.add('hidden-el');
+  viralTag.style.display = 'none';
+  theater.style.animation = 'none'; void theater.offsetWidth;
+  theater.style.animation = 'zoomin .3s ease-out forwards';
+  theater.classList.remove('shake');
+  overlay.classList.add('active');
+}
+
+/* The ported four-beat performance. The master's beat is always the same one
+   now — 'right', the look of someone who has already seen it. */
+function runInsightTheater(stats) {
+  const fac = currentNPC.faction;
+  const npcLabel = META[fac].label + ' · ' + currentNPC.name;
+  openTheaterShell();
+
+  setPortrait(mainSprite, 'player', 'neutral', portraitCell());
+  mainSprite.classList.remove('hidden-el');
+  iconSprite.classList.add('hidden-el');
+  theaterName.textContent = '大師';
+  theaterCaption.textContent = '你只是很自然地……';
+
+  setTimeout(() => {
+    setPortrait(mainSprite, 'player', 'right', portraitCell());
+    theaterCaption.textContent = '展望未來。眼神亮了起來，那是已經看見的人才有的神情。';
+  }, 620);
+
+  setTimeout(() => {
+    setPortrait(mainSprite, fac, 'think', portraitCell());
+    drawIcon(iconSprite, 'think', ICON_CELL);
+    iconSprite.classList.remove('hidden-el');
+    theaterName.textContent = npcLabel;
+    theaterCaption.textContent = '（' + currentNPC.name + ' 陷入沉思……）';
+  }, 1900);
+
+  setTimeout(() => {
+    setPortrait(mainSprite, fac, 'realize', portraitCell());
+    drawIcon(iconSprite, 'burst', ICON_CELL);
+    theaterCaption.textContent = '恍然大悟！！';
+    theater.classList.remove('shake'); void theater.offsetWidth; theater.classList.add('shake');
+    flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
+  }, 3100);
+
+  setTimeout(() => {
+    const gain = 20 + Math.round(stats.left) + Math.max(0, 12 - stats.tilts);
+    influence += gain;
+    trust[fac] = clamp(trust[fac] + 12, 0, 100);
+    theaterCaption.textContent = '';
+    theaterQuote.innerHTML = recordHtml(META[fac].label, currentNPC.name,
+      RAW_WIN(stats), INTERP[fac].right, gain);
+    theaterQuote.classList.remove('hidden-el');
+    continueBtn.classList.remove('hidden-el');
+    pushTicker(TICKER[fac].right);
+    pushNews(TICKER[fac].right);
+    renderFactionPanel();
+    updateHUD();
+  }, 3800);
+}
+
+/* Losing is not punished — it is simply not understood. */
+function runFlatteryTheater(stats) {
+  const fac = currentNPC.faction;
+  openTheaterShell();
+  setPortrait(mainSprite, 'player', 'neutral', portraitCell());
+  mainSprite.classList.remove('hidden-el');
+  iconSprite.classList.add('hidden-el');
+  theaterName.textContent = '大師';
+  theaterCaption.textContent = '你想了很久。然後就走了。';
+
+  setTimeout(() => {
+    setPortrait(mainSprite, fac, 'awe', portraitCell());
+    theaterName.textContent = META[fac].label + ' · ' + currentNPC.name;
+    theaterCaption.textContent = '（他決定先鼓掌再說。）';
+  }, 1500);
+
+  setTimeout(() => {
+    trust[fac] = clamp(trust[fac] + 2, 0, 100);
+    theaterCaption.textContent = '';
+    theaterQuote.innerHTML = recordHtml(META[fac].label, currentNPC.name,
+      RAW_FAIL(stats), FLATTERY[fac], 0);
+    theaterQuote.classList.remove('hidden-el');
+    continueBtn.classList.remove('hidden-el');
+    pushTicker(FLATTER_TICKER[fac]);
+    pushNews(FLATTER_TICKER[fac]);
+    renderFactionPanel();
+    updateHUD();
+  }, 2600);
+}
+
+function afterEncounter() {
+  bubble.style.opacity = 0;
+  playerTok.style.left = '95%';
+  setTimeout(() => {
+    npcTok.style.opacity = 0;
+    day++;
+    beginEncounter();
+  }, 900);
+}
+
+continueBtn.addEventListener('click', () => {
+  overlay.classList.remove('active');
+  if (pendingAction) { const fn = pendingAction; pendingAction = null; fn(); return; }
+  afterEncounter();
+});
+
+/* =====================================================================
+   5. ENDLESS MODE
+   ---------------------------------------------------------------------
+   Same field, no story: an arcade cabinet the master apparently keeps in the
+   back of the association. Failing here produces a printout, not a setback.
+   ===================================================================== */
+const BEST_KEY = 'tilt.best';
+function loadBest() { try { return JSON.parse(localStorage.getItem(BEST_KEY)) || {}; } catch (e) { return {}; } }
+function saveBest(b) { try { localStorage.setItem(BEST_KEY, JSON.stringify(b)); } catch (e) { } }
+
+function startEndless() {
+  mode = 'endless';
+  endless = { level: 0, score: 0, streak: 0, bestStreak: 0, totalTime: 0, cleared: 0 };
+  scoreLabel.textContent = '分數';
+  factionCard.style.display = 'none'; newsCard.style.display = 'none';
+  stage.classList.add('gone');
+  clockLabel.textContent = '無限模式';
+  footerHint.textContent = '通關即進下一關。時間到就結束——分數會被記錄下來。';
+  updateHUD();
+  nextEndlessLevel();
+}
+
+function nextEndlessLevel() {
+  endless.level++;
+  clockLabel.textContent = '無限模式 · 第 ' + endless.level + ' 關';
+  loadLevel(genLevel(endless.level), endlessWin, endlessFail);
+  setTimeout(() => { field.running = true; setInputEnabled(true); }, 450);
+}
+
+function endlessWin() {
+  setInputEnabled(false);
+  const left = field.timeLeft;
+  endless.totalTime += field.elapsed;
+  endless.cleared++;
+  endless.streak++;
+  endless.bestStreak = Math.max(endless.bestStreak, endless.streak);
+  endless.score += 100 + Math.round(left * 10) + endless.streak * 25;
+  updateHUD();
+  arenaCap.textContent = `+${100 + Math.round(left * 10) + endless.streak * 25}　連勝 ${endless.streak}`;
+  flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
+  setTimeout(nextEndlessLevel, 900);
+}
+
+function endlessFail() {
+  setInputEnabled(false);
+  endless.totalTime += field.elapsed;
+  arenaCap.classList.add('warn');
+  arenaCap.textContent = '時間到。';
+  setTimeout(showReport, 700);
+}
+
+function showReport() {
+  const best = loadBest();
+  const isRecord = (endless.score > (best.score || 0));
+  if (isRecord) { best.score = endless.score; best.level = endless.level; best.streak = endless.bestStreak; saveBest(best); }
+  drawReportCard(reportCard, endless, best, isRecord);
+  reportNote.textContent = isRecord ? '★ 新紀錄已寫入本機終端。' : '';
+  reportOverlay.classList.add('active');
+}
+
+/* The report is drawn, not laid out in DOM, so "存成圖片" is one call and the
+   thing the player shares looks like the machine printed it. */
+function drawReportCard(cv, run, best, isRecord) {
+  const W = 420, H = 300, s = 2;
+  cv.width = W * s; cv.height = H * s;
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(s, 0, 0, s, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+
+  ctx.fillStyle = '#060a08'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#1e3b2c'; ctx.lineWidth = 2; ctx.strokeRect(6, 6, W - 12, H - 12);
+
+  ctx.fillStyle = '#7ef0a8';
+  ctx.font = 'bold 15px ui-monospace, Consolas, monospace';
+  ctx.fillText('TILT MAZE — 傾斜實驗艙 戰績', 22, 34);
+  ctx.fillStyle = '#5f9c78'; ctx.font = '11px ui-monospace, Consolas, monospace';
+  ctx.fillText('全球超譯協會 · 訓練機台紀錄', 22, 50);
+
+  ctx.fillStyle = '#1e3b2c'; ctx.fillRect(22, 60, W - 44, 1);
+
+  ctx.fillStyle = '#ffd23f'; ctx.font = 'bold 44px ui-monospace, Consolas, monospace';
+  ctx.fillText(String(run.score).padStart(6, '0'), 22, 104);
+  ctx.fillStyle = '#5f9c78'; ctx.font = '11px ui-monospace, Consolas, monospace';
+  ctx.fillText('SCORE', 22, 120);
+
+  const rows = [
+    ['抵達關卡', '第 ' + run.level + ' 關'],
+    ['通關數', run.cleared + ' 關'],
+    ['最長連勝', run.bestStreak + ' 連'],
+    ['總遊玩時間', run.totalTime.toFixed(1) + ' 秒'],
+    ['平均每關', (run.cleared ? run.totalTime / run.cleared : 0).toFixed(1) + ' 秒'],
+    ['本機最高分', String(best.score || run.score)]
+  ];
+  ctx.font = '13px ui-monospace, Consolas, monospace';
+  rows.forEach(([k, v], i) => {
+    const y = 148 + i * 22;
+    ctx.fillStyle = '#5f9c78'; ctx.fillText(k, 26, y);
+    ctx.fillStyle = '#d8ffe8'; ctx.textAlign = 'right'; ctx.fillText(v, W - 26, y); ctx.textAlign = 'left';
+    ctx.fillStyle = '#0f1e16'; ctx.fillRect(26, y + 5, W - 52, 1);
+  });
+
+  if (isRecord) {
+    ctx.fillStyle = '#ff2e88'; ctx.font = 'bold 13px ui-monospace, Consolas, monospace';
+    ctx.fillText('★ NEW RECORD', W - 150, 104);
+  }
+  ctx.fillStyle = '#5f9c78'; ctx.font = '10px ui-monospace, Consolas, monospace';
+  ctx.fillText('#天才模擬器 #思想重力場', 22, H - 20);
+
+  // scanlines, so the printout belongs to the same device as everything else
+  ctx.fillStyle = 'rgba(126,240,168,0.045)';
+  for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
+}
+
+$('againBtn').addEventListener('click', () => { reportOverlay.classList.remove('active'); startEndless(); });
+$('quitBtn').addEventListener('click', () => { reportOverlay.classList.remove('active'); beginEncounter(); });
+$('shotBtn').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.download = `思想重力場_${endless.score}分.png`;
+  a.href = reportCard.toDataURL('image/png');
+  a.click();
+  reportNote.textContent = '已輸出 PNG。';
+});
+$('copyBtn').addEventListener('click', async () => {
+  const t = `【思想重力場】分數 ${endless.score}｜抵達第 ${endless.level} 關｜最長連勝 ${endless.bestStreak}｜總時間 ${endless.totalTime.toFixed(1)} 秒 #天才模擬器`;
+  try { await navigator.clipboard.writeText(t); reportNote.textContent = '戰績已複製，可直接貼上分享。'; }
+  catch (e) { reportNote.textContent = t; }
+});
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+$('storyBtn').addEventListener('click', () => { startScreen.classList.add('gone'); beginEncounter(); });
+$('endlessBtn').addEventListener('click', () => { startScreen.classList.add('gone'); startEndless(); });
+
+/* prototype-only handle: lets a headless/hidden page be stepped by hand, and
+   lets you poke at the tuning constants from the console without a rebuild */
+window.__tilt = {
+  get field() { return field; }, held, stepPhysics, drawField, updateClock,
+  loadLevel, genLevel, STORY_LEVELS, startEndless, beginEncounter
+};
+
+renderFactionPanel();
+updateHUD();
+drawPlayer(playerTok, 'neutral', STREET_CELL);
+pushNews('協會宣布啟用「思想重力場」觀測程序，細節不予說明。');
+
+    })();
+  </script>
+</body>
+
+</html>

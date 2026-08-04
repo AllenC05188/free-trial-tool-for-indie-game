@@ -1,0 +1,115 @@
+  <div id="app">
+
+    <header>
+      <div>
+        <h1>思想重力場</h1>
+        <div class="subtitle">TILT MAZE · 大師觀測終端 · 傾斜實驗艙</div>
+      </div>
+      <div class="influence-box">
+        <div class="label" id="scoreLabel">影響力指數（協會認證）</div>
+        <div class="num" id="influenceNum">0</div>
+      </div>
+    </header>
+
+    <!-- The countdown reuses the doomsday rail: in this scene it is the window
+         of time in which the subject is still capable of understanding. -->
+    <div class="doom-wrap">
+      <div class="doom-label"><span id="clockLabel">頓悟窗口</span><span id="clockRight">— —</span></div>
+      <div class="doom-track">
+        <div class="doom-fill" id="clockFill"></div>
+      </div>
+    </div>
+
+    <main>
+      <!-- The street stage and the gravity field occupy the same slot: the field
+           is what the street becomes once the master starts thinking. -->
+      <div class="stage" id="stage">
+        <div class="stage-hint" id="stageHint">走在街上，遇見了……</div>
+        <canvas id="npcTok" class="token"></canvas>
+        <div id="bubble" class="bubble"><span class="tag" id="bubbleTag">教授派</span><br><span id="bubbleText"></span>
+        </div>
+        <canvas id="playerTok" class="token"></canvas>
+        <div class="road"></div>
+      </div>
+
+      <div class="arena-wrap" id="arenaWrap">
+        <div class="arena-board" id="arenaBoard">
+          <canvas id="arena"></canvas>
+        </div>
+        <div class="arena-cap" id="arenaCap"></div>
+      </div>
+
+      <div class="dpad-wrap">
+        <div class="dpad">
+          <button id="dUp" disabled title="場地北傾">⬆️<span class="dk">北傾</span></button>
+          <button id="dLeft" disabled title="場地西傾">⬅️<span class="dk">西傾</span></button>
+          <div id="dCenter">重<br>力</div>
+          <button id="dRight" disabled title="場地東傾">➡️<span class="dk">東傾</span></button>
+          <button id="dDown" disabled title="場地南傾">⬇️<span class="dk">南傾</span></button>
+        </div>
+      </div>
+
+      <div class="footer-hint" id="footerHint">按住方向鍵讓場地持續傾斜，放開後會慢慢回正。</div>
+    </main>
+
+    <div class="panel-card" id="factionCard">
+      <div class="pc-head"><span class="term-title">各學派信任度</span></div>
+      <div class="factions" id="factionsPanel"></div>
+    </div>
+
+    <div class="panel-card" id="newsCard">
+      <div class="pc-head"><span class="ticker-live"></span><span class="term-title">協會新聞線</span></div>
+      <div class="news-list" id="newsList"></div>
+    </div>
+
+    <div class="ticker-wrap">
+      <div class="ticker-label"><span class="ticker-live"></span>協會新聞線</div>
+      <div class="ticker-track" id="tickerTrack">世界正在等待大師傾斜第一次……</div>
+    </div>
+
+  </div>
+
+  <div class="flash" id="flash"></div>
+
+  <!-- interpretation theater (ported) -->
+  <div id="overlay">
+    <div class="theater term" id="theater">
+      <div class="theater-scroll">
+        <div class="npc-name" id="theaterName">&nbsp;</div>
+        <div class="char-stage">
+          <canvas id="mainSprite" class="main-sprite"></canvas>
+          <canvas id="iconSprite" class="icon-canvas hidden-el"></canvas>
+        </div>
+        <div class="caption" id="theaterCaption"></div>
+        <div class="quote hidden-el" id="theaterQuote"></div>
+        <div class="gain hidden-el" id="theaterGain">+0</div>
+        <div id="viralTag" style="display:none" class="viral-tag">🔥 迷因病毒式擴散！</div>
+        <button id="continueBtn" class="hidden-el">繼續</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- arcade game-over report (endless mode only) -->
+  <div id="reportOverlay">
+    <div class="report term">
+      <div class="report-head">GAME OVER</div>
+      <canvas id="reportCard"></canvas>
+      <div class="report-btns">
+        <button id="againBtn" class="primary">再挑戰一次</button>
+        <button id="shotBtn">存成圖片</button>
+        <button id="copyBtn">複製戰績</button>
+        <button id="quitBtn">回到街上</button>
+      </div>
+      <div class="report-note" id="reportNote"></div>
+    </div>
+  </div>
+
+  <div id="startScreen">
+    <div class="start-inner term">
+      <div class="start-title">思想重力場</div>
+      <div class="start-sub">TILT MAZE — 協會傾斜實驗艙 · 原型</div>
+      <button class="primary" id="storyBtn">劇情模式</button>
+      <button id="endlessBtn">無限模式</button>
+      <div class="start-note">方向鍵／WASD／下方按鈕：按住傾斜場地。<br>球必須自己滾進洞裡——你不能碰它。</div>
+    </div>
+  </div>
