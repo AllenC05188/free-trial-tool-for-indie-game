@@ -64,7 +64,7 @@
    0 · 常數與工具
    ══════════════════════════════════════════════════════════════════ */
 /* 版本戳記：file:// 的快取很黏，看不到這串更新就是拿到舊檔，按 Ctrl+F5 強制重載 */
-const BUILD = 'N3-foot-0804c';
+const BUILD = 'N3-back-0804d';
 const VW = 480, VH = 270;          // 虛擬解析度（1920×1080 = 整數 4 倍）
 const TS = 16;                     // 圖塊邊長
 const MOD = 20;                    // 一塊地基模組 = 20×20 圖塊
@@ -1193,13 +1193,26 @@ let tSec = 0;
 
 const key = (x, y) => x + ',' + y;
 const isGround = (x, y) => owned.has(Math.floor(x / MOD) + ',' + Math.floor(y / MOD));
+/* 佔地（放置與點選用）＝完整的 w × h */
 function bAt(x, y) { return buildings.find(b => { const f = foot(b.key);
   return x >= b.x && x < b.x + f.w && y >= b.y && y < b.y + f.h; }) || null; }
+
+/* 碰撞（行走用）比佔地淺一排：最後面那一排留給玩家走。
+   不這樣做的話，樓與樓之間、車子後面明明看得到空隙卻走不過去，變成空氣牆。
+   站在後排會被建築的圖蓋住——那正是「走到建築後面」該有的樣子。 */
+const FOOT_BACK_WALK = 1;
+function blockerAt(x, y) {
+  return buildings.find(b => {
+    if (b.key === 'farm') return false;          // 農地本來就可以踩
+    const f = foot(b.key);
+    return x >= b.x && x < b.x + f.w
+        && y >= b.y + FOOT_BACK_WALK && y < b.y + f.h;
+  }) || null;
+}
 function blocked(x, y) {
   if (!isGround(x, y)) return true;
   if (terrain.get(key(x, y)) === 'water') return true;
-  const b = bAt(x, y);
-  return !!(b && b.key !== 'farm');
+  return !!blockerAt(x, y);          // 用碰撞範圍，不是佔地範圍
 }
 function expandable() {
   const out = new Map();
@@ -2174,7 +2187,7 @@ function drawOverlay() {
   /* ── 底部：操作提示在上，出處聲明在下（.src 永遠是最後一行） ── */
   O.textBaseline = 'alphabetic';
   O.font = `9px ${MONO}`; O.textAlign = 'left'; O.fillStyle = 'rgba(95,156,120,.42)';
-  O.fillText(`WASD 移動　·　走近工程車取模型　·　點地放下　·　ESC 取消　·　T 快轉　·　build ${BUILD} / 除數 ${SHEET_DIV} / 模組 ${MOD}`, 12, OH - 24);
+  O.fillText(`WASD 移動　·　走近工程車取模型　·　點地放下　·　ESC 取消　·　T 快轉`, 12, OH - 24);
   O.textAlign = 'center'; O.fillStyle = 'rgba(95,156,120,.55)';
   O.fillText('來源：協會基地觀測頻道 · 本畫面所呈現之一切結論均為各學派推定，協會不負任何責任', OW / 2, OH - 10);
 
