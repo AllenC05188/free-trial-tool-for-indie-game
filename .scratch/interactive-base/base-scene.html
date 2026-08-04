@@ -64,17 +64,16 @@
    0 · 常數與工具
    ══════════════════════════════════════════════════════════════════ */
 /* 版本戳記：file:// 的快取很黏，看不到這串更新就是拿到舊檔，按 Ctrl+F5 強制重載 */
-const BUILD = 'N3-foot-0804a';
+const BUILD = 'N3-foot-0804b';
 const VW = 480, VH = 270;          // 虛擬解析度（1920×1080 = 整數 4 倍）
 const TS = 16;                     // 圖塊邊長
 const MOD = 20;                    // 一塊地基模組 = 20×20 圖塊
-const CHAR_SCALE = 2;              // 人物素材暫時用現有的等比放大
 /* 建築佔地不再統一：寬度由美術自己決定（ceil(圖寬/圖塊)），深度固定 3 格。
    深度固定是因為佔地是「地基」不是「整棟」——高的建築要往上超出去，
    不該把頭頂那幾格也變成不能走。 */
 const FOOT_DEPTH = 3;
 const DEFAULT_FOOT = { w: 4, h: FOOT_DEPTH };
-const FOOT = { farm: { w: 4, h: FOOT_DEPTH } };
+const FOOT = { farm: { w: 2, h: 2 } };     // 農地不跟建築同規格
 function foot(k) { return FOOT[k] || DEFAULT_FOOT; }
 const REACH = 5.0;                 // 放置距離（圖塊）；建築變大，手要伸得遠一點
 
@@ -997,12 +996,9 @@ function actorSprite(palKey, pal, dir, frame) {
   body.forEach((r, i) => { rows[i + 1 + bob] = r; });
   legs.forEach((r, i) => { rows[21 + i] = r; });
   let cv = fromGrid(rows, pal);
-  if (CHAR_SCALE !== 1) {                     // 等比放大，最近鄰保持銳利
-    const bw = cv.width * CHAR_SCALE, bh = cv.height * CHAR_SCALE, o = cv;
-    cv = bake(bw, bh, g => { g.imageSmoothingEnabled = false; g.drawImage(o, 0, 0, bw, bh); });
-  }
   if (dir === 'left') {                                   // 右向鏡射成左向
-    cv = bake(16, 24, g => { g.translate(16, 0); g.scale(-1, 1); g.drawImage(cv, 0, 0); });
+    const o = cv, w = o.width, h = o.height;               // 尺寸跟著來源走，不寫死
+    cv = bake(w, h, g => { g.translate(w, 0); g.scale(-1, 1); g.drawImage(o, 0, 0); });
   }
   actorCache[ck] = cv;
   return cv;
@@ -1422,8 +1418,11 @@ function place(x, y) {
   if (!fx) pay(BLD[k].cost);
   // 既有設施是整棟搬過來的，不需要重蓋，所以直接完工
   buildings.push({ key: k, x, y, lv: 1, prog: fx ? 1 : 0, fixed: fx, crop: (!fx && k === 'farm') ? 0 : null, grow: 0 });
-  for (let dx = 0; dx < pf.w; dx++) for (let dy = 0; dy < pf.h; dy++)
-    terrain.set(key(x + dx, y + dy), (!fx && k === 'farm') ? 'tilled' : 'dirt');
+  /* 只有農地會翻土。一般建築不改地表——原本會把佔地整片鋪成 dirt，
+     結果每棟腳下都拖著一塊突兀的土色方塊。建築本身就有接地陰影，不需要那個。 */
+  if (!fx && k === 'farm')
+    for (let dx = 0; dx < pf.w; dx++) for (let dy = 0; dy < pf.h; dy++)
+      terrain.set(key(x + dx, y + dy), 'tilled');
   player.carry = null; player.carryFix = false;
   SFX.place(); emit(x + pf.w / 2, y + pf.h / 2, 'dust', 10);
   say(fx ? `${d.n} 已就位。` : `${d.n} 已下樁。工程隊過來了。`);
@@ -1452,6 +1451,7 @@ function demolish(b) {
   say(`${BLD[b.key].n}拆了，資源全數退回。`);
 }
 function clearTiles(b) {
+  if (b.key !== 'farm') return;      // 只有農地翻過土，其他建築沒動過地表就別亂刷
   const cf = foot(b.key);
   for (let dx = 0; dx < cf.w; dx++) for (let dy = 0; dy < cf.h; dy++) terrain.set(key(b.x + dx, b.y + dy), 'grass');
 }
@@ -1844,16 +1844,17 @@ function draw() {
       }
     } else {
       const a = e.a, sx = Math.round(a.x * TS - cx), sy = Math.round(a.y * TS - cy);
-      W.drawImage(SHADOW, sx - 8 * CHAR_SCALE, sy - 3, 16 * CHAR_SCALE, 7);
+      W.drawImage(SHADOW, sx - 8, sy - 3, 16, 7);
       const fr = (a === player ? player.moving : a.path && a.path.length) ? (Math.floor(a.anim) % 4) : 0;
       const bob = (a === player && !player.moving) ? (Math.sin(tSec * 2.2) > .6 ? 1 : 0) : 0;
       const spr = actorSprite(a.palKey, a.pal, a.dir, fr);
-      W.drawImage(spr, sx - 8 * CHAR_SCALE, sy - 21 * CHAR_SCALE + bob);
-      actorDraws.push({ img: spr, x: sx - 8 * CHAR_SCALE, y: sy - 21 * CHAR_SCALE + bob });   // 光層要照這個剪影挖洞
+      W.drawImage(spr, sx - 8, sy - 21 + bob);
+      actorDraws.push({ img: spr, x: sx - 8, y: sy - 21 + bob });   // 光層要照這個剪影挖洞
       if (a === player && player.carry) {                // 抱在手上的模型
         const m = buildingSprite(player.carry, 1, player.carryFix);
         W.save(); W.globalAlpha = .95;
-        W.drawImage(m, 0, 0, m.width, m.height, sx - 6 * CHAR_SCALE, sy - 30 * CHAR_SCALE, m.width * .34, m.height * .34);
+        const ms = 18 / m.height;                        // 抱在手上的模型固定約 18px 高
+        W.drawImage(m, 0, 0, m.width, m.height, sx - m.width * ms / 2, sy - 26, m.width * ms, m.height * ms);
         W.restore();
       }
     }
