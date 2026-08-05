@@ -2335,49 +2335,6 @@
       letter-spacing: 1px;
     }
 
-    /* ---------- PLOTS (grow over days) ---------- */
-    .plot-row {
-      display: flex;
-      gap: 7px;
-      flex-wrap: wrap;
-      margin-bottom: 9px;
-    }
-
-    .plot {
-      width: 70px;
-      border: 2px solid var(--border);
-      background: var(--bg-panel-2);
-      padding: 8px 4px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color .15s;
-    }
-
-    .plot:hover {
-      border-color: var(--cyan);
-    }
-
-    .plot .pi {
-      font-size: calc(22px * var(--fs));
-      line-height: 1.2;
-    }
-
-    .plot .pn {
-      font-family: var(--mono);
-      font-size: calc(12px * var(--fs));
-      color: var(--text-dim);
-      margin-top: 3px;
-    }
-
-    .plot.ripe {
-      border-color: var(--gold);
-      box-shadow: 0 0 10px rgba(255, 210, 63, 0.35);
-    }
-
-    .plot.ripe .pn {
-      color: var(--gold);
-    }
-
     /* ---------- SETTINGS ---------- */
     #setOverlay {
       position: fixed;
@@ -2386,7 +2343,9 @@
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 78;
+      /* above the title menu (300) and the dev bar (320): settings is always
+         the frontmost thing while it is open */
+      z-index: 360;
       padding: 16px;
     }
 
@@ -3303,424 +3262,6 @@
       color: var(--danger);
     }
 
-    /* ================= BASE BUILDING ================= */
-    #baseOverlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(3, 0, 10, 0.92);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 58;
-      padding: 14px;
-    }
-
-    #baseOverlay.active {
-      display: flex;
-    }
-
-    .base-panel {
-      max-width: 540px;
-      width: 100%;
-      height: min(720px, 92vh);
-      background: var(--bg-panel);
-      border: 3px solid var(--cyan);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    /* First-run coaching adds a whole extra block below the building list. Without
-     more room the panel's fixed height starves .base-body down to a sliver (or
-     less, since overflow:hidden can clip the coach's own Next button off the
-     bottom) — exactly when the player most needs to see and click a building. */
-    .base-panel:has(.coach.active) {
-      height: min(860px, 96vh);
-    }
-
-    /* The plot art is 238px and flex-shrink:0, so with the coach up the column
-     overflows and the coach's buttons fall outside the panel. Reclaim it from
-     the scene's empty sky rather than from the building list, which the player
-     needs to click during the tutorial.
-     The canvas keeps its own box and is merely clipped/offset by the wrapper —
-     sceneClick() maps taps through baseScene.getBoundingClientRect(), so the
-     hit-testing stays exact instead of drifting the way a rescale would.
-     The crop takes the empty foreground off the bottom — the plots and their
-     Lv labels sit in the upper band, so they stay fully visible, and the
-     "點選地基上的建物" tip is anchored to the wrapper so it rides up with it. */
-    .base-panel:has(.coach.active) .scene-wrap {
-      max-height: 150px;
-    }
-
-    .base-panel:has(.coach.active) .src {
-      display: none;
-    }
-
-    /* the tip is anchored to the wrapper's bottom, so after the crop it lands on
-     top of the plot row — and the coach is already saying the same thing */
-    .base-panel:has(.coach.active) .scene-tip {
-      display: none;
-    }
-
-    .base-panel:has(.coach.active) .limit-bar {
-      max-height: 64px;
-      overflow-y: auto;
-    }
-
-    .base-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 11px 14px;
-      border-bottom: 2px solid var(--border);
-    }
-
-    .base-head h3 {
-      margin: 0;
-      font-family: var(--mono);
-      font-size: calc(13px * var(--fs));
-      letter-spacing: 1px;
-      color: var(--term-fg);
-      text-shadow: var(--glow);
-    }
-
-    .base-head button {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--text-dim);
-      font-family: var(--mono);
-      font-size: calc(13px * var(--fs));
-      padding: 4px 8px;
-      cursor: pointer;
-    }
-
-    .base-head button:hover {
-      color: var(--danger);
-      border-color: var(--danger);
-    }
-
-    .res-bar {
-      display: flex;
-      gap: 6px;
-      padding: 9px 12px;
-      border-bottom: 2px solid var(--border);
-      font-family: var(--mono);
-      font-size: calc(12px * var(--fs));
-      flex-wrap: wrap;
-      background: var(--bg-panel-2);
-    }
-
-    .res-bar span {
-      flex: 1;
-      text-align: center;
-      min-width: 74px;
-    }
-
-    .res-bar b {
-      color: var(--gold);
-    }
-
-    .tier-bar {
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border);
-      font-family: var(--mono);
-      font-size: calc(13px * var(--fs));
-      color: var(--text-dim);
-    }
-
-    .tier-bar b {
-      color: var(--ai);
-    }
-
-    .limit-bar {
-      padding: 8px 12px;
-      border-bottom: 2px solid var(--border);
-      font-size: calc(14px * var(--fs));
-      color: #ffb896;
-      background: rgba(255, 77, 77, 0.08);
-      line-height: 1.6;
-    }
-
-    .scene-wrap {
-      position: relative;
-      border-bottom: 2px solid var(--border);
-      background:
-        linear-gradient(#0f0a1c 0%, #1a1030 60%, #241a3a 100%);
-      flex-shrink: 0;
-    }
-
-    .scene-wrap canvas {
-      width: 100%;
-      height: auto;
-      display: block;
-      cursor: pointer;
-    }
-
-    .scene-tip {
-      position: absolute;
-      left: 8px;
-      bottom: 6px;
-      font-family: var(--mono);
-      font-size: calc(12px * var(--fs));
-      color: var(--text-dim);
-      background: rgba(0, 0, 0, 0.45);
-      padding: 2px 6px;
-      pointer-events: none;
-    }
-
-    /* min-height must stay 0: a flex item defaults to min-height:auto, which
-     refuses to shrink below its content and pushes later siblings (the coach)
-     out through the panel's overflow:hidden. The basis keeps it a fair share. */
-    .base-body {
-      flex: 1 1 140px;
-      min-height: 0;
-      overflow-y: auto;
-      padding: 11px 12px;
-    }
-
-    /* Same reason as .panel: default OS scrollbars read as browser chrome and
-     break the terminal fiction the whole UI is built on. */
-    .base-body::-webkit-scrollbar {
-      width: 9px;
-    }
-
-    .base-body::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.45);
-    }
-
-    .base-body::-webkit-scrollbar-thumb {
-      background: var(--border);
-    }
-
-    .base-body::-webkit-scrollbar-thumb:hover {
-      background: var(--cyan);
-    }
-
-    .bld.focus {
-      border-color: var(--gold);
-      box-shadow: 0 0 0 2px rgba(255, 210, 63, 0.22);
-    }
-
-    /* first-run coaching: the base used to just appear with resources in it */
-    .coach {
-      border-top: 2px solid var(--gold);
-      background: linear-gradient(90deg, rgba(255, 210, 63, 0.14), rgba(255, 210, 63, 0.04));
-      padding: 11px 13px 0;
-      display: none;
-      flex-shrink: 0;
-      max-height: 30vh;
-      overflow-y: auto;
-    }
-
-    /* The tutorial is the one thing that must never be clipped — its buttons are
-     the only way forward. Longer steps scroll inside the coach instead of
-     pushing the row off the bottom of the panel. */
-    .coach::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .coach::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.35);
-    }
-
-    .coach::-webkit-scrollbar-thumb {
-      background: var(--gold);
-      opacity: 0.6;
-    }
-
-    /* the row owns the box's bottom padding: sticky offsets resolve against the
-     scrollport, so any padding left on .coach becomes a strip under the pinned
-     row where the scrolling text shows through */
-    .coach .crow {
-      position: sticky;
-      bottom: 0;
-      padding: 8px 0 11px;
-      margin-top: 4px;
-      /* opaque, and repeating the coach's own gold wash so the pinned row reads as
-       part of the box rather than a panel floating over it */
-      background: linear-gradient(90deg, rgba(255, 210, 63, 0.14), rgba(255, 210, 63, 0.04)), var(--bg-panel);
-      box-shadow: 0 -9px 11px -7px var(--bg-panel);
-    }
-
-    .coach.active {
-      display: block;
-    }
-
-    .coach .ct {
-      font-family: var(--mono);
-      font-size: calc(13px * var(--fs));
-      color: var(--gold);
-      letter-spacing: 1px;
-      margin-bottom: 5px;
-    }
-
-    .coach .cb {
-      font-size: calc(12.5px * var(--fs));
-      line-height: 1.75;
-    }
-
-    .coach .crow {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-top: 9px;
-    }
-
-    .coach button {
-      background: none;
-      border: 2px solid var(--term-fg);
-      color: var(--term-fg);
-      text-shadow: var(--glow);
-      font-family: var(--mono);
-      font-weight: bold;
-      font-size: calc(14px * var(--fs));
-      padding: 8px 14px;
-      cursor: pointer;
-      letter-spacing: 1px;
-    }
-
-    .coach .skip {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--text-dim);
-      font-weight: normal;
-    }
-
-    .coach .step {
-      margin-left: auto;
-      font-family: var(--mono);
-      font-size: calc(12px * var(--fs));
-      color: var(--text-dim);
-    }
-
-    .base-sect {
-      font-family: var(--mono);
-      font-size: calc(13px * var(--fs));
-      color: var(--text-dim);
-      letter-spacing: 1px;
-      margin: 4px 0 8px;
-      padding-bottom: 4px;
-      border-bottom: 1px dashed var(--border);
-    }
-
-    .bld {
-      border: 2px solid var(--border);
-      background: var(--bg-panel-2);
-      padding: 10px;
-      margin-bottom: 8px;
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-    }
-
-    .bld.locked {
-      opacity: 0.5;
-    }
-
-    .bld .bi {
-      font-size: calc(22px * var(--fs));
-      width: 30px;
-      text-align: center;
-      flex-shrink: 0;
-    }
-
-    .bld .bmain {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .bld .bname {
-      font-family: var(--mono);
-      font-size: calc(12.5px * var(--fs));
-      color: var(--text);
-    }
-
-    .bld .blv {
-      font-family: var(--mono);
-      font-size: calc(12px * var(--fs));
-      color: var(--gold);
-      margin-left: 6px;
-    }
-
-    .bld .bdesc {
-      font-size: calc(13px * var(--fs));
-      color: var(--text-dim);
-      line-height: 1.55;
-      margin-top: 3px;
-    }
-
-    .bld .beff {
-      font-size: calc(13px * var(--fs));
-      color: var(--cyan);
-      line-height: 1.55;
-      margin-top: 4px;
-      font-family: var(--mono);
-    }
-
-    .bld button {
-      margin-top: 7px;
-      background: var(--bg-panel);
-      border: 2px solid var(--cyan);
-      color: var(--cyan);
-      font-family: var(--mono);
-      font-size: calc(13px * var(--fs));
-      padding: 6px 10px;
-      cursor: pointer;
-      letter-spacing: 0.5px;
-    }
-
-    .bld button:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      border-color: var(--border);
-      color: var(--text-dim);
-    }
-
-    .bld button:not(:disabled):hover {
-      background: var(--cyan);
-      color: #04262a;
-    }
-
-    .talent {
-      border: 1px solid var(--border);
-      padding: 7px 9px;
-      margin-bottom: 6px;
-      font-size: calc(14px * var(--fs));
-      line-height: 1.6;
-    }
-
-    .talent b {
-      color: var(--gold);
-      font-family: var(--mono);
-      font-size: calc(13px * var(--fs));
-    }
-
-    .talent .unlocks {
-      color: var(--cyan);
-      font-family: var(--mono);
-      font-size: calc(12px * var(--fs));
-    }
-
-    .empty-note {
-      color: var(--text-dim);
-      font-size: calc(14px * var(--fs));
-      line-height: 1.7;
-      padding: 8px 2px;
-    }
-
-    .deck-chip {
-      display: inline-block;
-      border: 1px solid var(--border);
-      font-size: calc(12px * var(--fs));
-      padding: 3px 7px;
-      margin: 0 5px 5px 0;
-      color: var(--text-dim);
-    }
-
-    .deck-chip b {
-      color: var(--text);
-    }
-
     @media (max-width:520px) {
 
       /* keep the hand a single readable row and let it scroll, rather than
@@ -3757,6 +3298,590 @@
         font-size: calc(12px * var(--fs));
       }
     }
+
+    /* =====================================================================
+       TITLE MENU
+       ---------------------------------------------------------------------
+       The art IS the screen: it already paints the console, the four button
+       plates and their labels. So it is shown at its own aspect ratio
+       (1264x843) rather than cover-cropped — crop it and every hit area slides
+       off the plate it is supposed to be sitting on — and our buttons are
+       transparent hit areas pinned to coordinates measured from the file.
+       ===================================================================== */
+    #titleMenu {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: #05030c;
+    }
+
+    #titleMenu.active {
+      display: flex;
+    }
+
+    .tm-art {
+      position: relative;
+      width: min(100vw, calc(100vh * 1264 / 843));
+      height: min(100vh, calc(100vw * 843 / 1264));
+    }
+
+    .tm-art img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    /* the same CRT skin the rest of the game wears, so the menu belongs to it */
+    .tm-art::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(0deg, rgba(126, 240, 168, 0.03) 0 1px, transparent 1px 3px),
+        radial-gradient(ellipse at 50% 50%, transparent 62%, rgba(0, 0, 0, 0.45) 100%);
+    }
+
+    /* measured from assets/title-menu.png: the plates span x 40.74%-59.18%,
+       are 6.17% tall, and sit at y 57.53 / 65.72 / 73.90 / 82.09 */
+    .tm-plate {
+      position: absolute;
+      left: 40.74%;
+      width: 18.44%;
+      height: 6.17%;
+      margin: 0;
+      padding: 0;
+      background: none;
+      border: 0;
+      border-radius: 4px;
+      cursor: pointer;
+      font: inherit;
+      color: transparent;
+      transition: box-shadow .16s, background .16s;
+    }
+
+    .tm-plate:not(:disabled):hover,
+    .tm-plate:not(:disabled):focus-visible {
+      background: rgba(255, 210, 63, 0.10);
+      box-shadow: 0 0 0 2px rgba(255, 210, 63, 0.75), 0 0 26px rgba(255, 210, 63, 0.45);
+      outline: none;
+    }
+
+    .tm-plate:not(:disabled):active {
+      background: rgba(255, 210, 63, 0.22);
+    }
+
+    .tm-plate:disabled {
+      cursor: default;
+      background: rgba(3, 2, 8, 0.55);
+    }
+
+    .tm-locked {
+      position: absolute;
+      left: 40.74%;
+      width: 18.44%;
+      height: 6.17%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      font-family: var(--mono);
+      font-size: clamp(10px, 1vw, 14px);
+      letter-spacing: 3px;
+      color: rgba(240, 230, 255, 0.6);
+      text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+    }
+
+
+    /* ---------- developer bar ---------- */
+    #devBar {
+      position: fixed;
+      top: 8px;
+      right: 8px;
+      z-index: 320;
+      display: none;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      max-width: 60vw;
+    }
+
+    #devBar.on {
+      display: flex;
+    }
+
+    #devBar button {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      padding: 5px 9px;
+      color: #ff8c42;
+      background: rgba(20, 8, 4, 0.85);
+      border: 1px solid #ff8c42;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    #devBar button:hover {
+      color: #0a0512;
+      background: #ff8c42;
+    }
+
+    .set-slider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: calc(13px * var(--fs));
+      color: var(--text-dim);
+      padding: 4px 0 8px;
+    }
+
+    .set-slider input[type=range] {
+      flex: 1;
+      accent-color: var(--term-fg);
+    }
+
+    .set-slider b {
+      color: var(--term-fg);
+      min-width: 2.4em;
+      text-align: right;
+    }
+
+    /* the CRT skin is one switch: every layer that wears it reads this class */
+    body.no-crt::after,
+    body.no-crt .tm-art::after {
+      display: none;
+    }
+
+    .set-check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: calc(13px * var(--fs));
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 6px 0;
+    }
+
+    .set-check input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--term-fg);
+    }
+
+    .set-note {
+      font-family: var(--mono);
+      font-size: calc(11px * var(--fs));
+      color: var(--text-dim);
+      opacity: 0.7;
+      line-height: 1.7;
+    }
+
+    /* =====================================================================
+       TILT MAZE — the street encounter's minigame
+       (see src/tilt-maze.js; layout is 70/20/10 by area and by contrast)
+       ===================================================================== */
+    #tmRoot {
+      position: fixed;
+      inset: 0;
+      z-index: 140;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px 26px 10px;
+      background:
+        radial-gradient(ellipse at 50% 34%, rgba(70, 130, 175, 0.10), transparent 62%),
+        radial-gradient(ellipse at 50% 120%, rgba(126, 240, 168, 0.05), transparent 55%),
+        #04070a;
+    }
+
+    #tmRoot.active {
+      display: flex;
+    }
+
+    .tm-top {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) minmax(260px, 2fr) minmax(180px, 1fr);
+      align-items: center;
+      gap: 26px;
+      flex: 0 0 auto;
+      opacity: 0.82;
+    }
+
+    .tm-score {
+      text-align: right;
+      font-family: var(--mono);
+    }
+
+    .tm-score .label {
+      font-size: calc(10px * var(--fs));
+      letter-spacing: 3px;
+      color: #4d7d67;
+    }
+
+    .tm-score .num {
+      font-size: calc(24px * var(--fs));
+      color: #e7c66a;
+      text-shadow: 0 0 14px rgba(255, 210, 63, 0.35);
+    }
+
+    .tm-brand {
+      font-family: var(--mono);
+      font-size: calc(11px * var(--fs));
+      letter-spacing: 4px;
+      color: #4d7d67;
+    }
+
+    .tm-clock .lbl {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: calc(10px * var(--fs));
+      letter-spacing: 2px;
+      color: #4d7d67;
+      margin-bottom: 3px;
+    }
+
+    .tm-clock .track {
+      height: 5px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tm-clock .fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #ff5f56, #ff8c42);
+      transition: width .1s linear;
+    }
+
+    .tm-clock .fill.calm {
+      background: linear-gradient(90deg, rgba(150, 205, 240, 0.75), rgba(126, 240, 168, 0.6));
+    }
+
+    .tm-hero {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr) 260px;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .tm-hero.solo {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tm-hero.solo .tm-side {
+      display: none;
+    }
+
+    .tm-side {
+      position: relative;
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      opacity: 0;
+      transition: opacity .5s ease;
+    }
+
+    .tm-side.on {
+      opacity: 1;
+    }
+
+    .tm-fx {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .tm-bust {
+      position: relative;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.8));
+    }
+
+    .tm-side .nm {
+      position: relative;
+      font-family: var(--mono);
+      font-size: calc(14px * var(--fs));
+      letter-spacing: 2px;
+      color: #cfe6da;
+      margin-top: 12px;
+    }
+
+    .tm-side .tg {
+      position: relative;
+      font-family: var(--mono);
+      font-size: calc(11px * var(--fs));
+      letter-spacing: 2px;
+      margin-top: 4px;
+    }
+
+    .tm-side .say {
+      position: relative;
+      font-size: calc(13px * var(--fs));
+      line-height: 1.8;
+      color: #9db9ad;
+      margin-top: 10px;
+      max-width: 230px;
+      min-height: 3.4em;
+    }
+
+    .tm-side .st {
+      position: relative;
+      font-family: var(--mono);
+      font-size: calc(11px * var(--fs));
+      letter-spacing: 3px;
+      color: #4d7d67;
+      margin-top: 8px;
+      min-height: 1.4em;
+    }
+
+    .tm-field {
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .tm-boardwrap {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(ellipse at 50% 55%, rgba(80, 150, 200, 0.10), transparent 70%);
+    }
+
+    .tm-boardwrap canvas {
+      display: block;
+    }
+
+    .tm-cap {
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      letter-spacing: 3px;
+      color: #5f8f7a;
+      min-height: 1.4em;
+    }
+
+    .tm-cap.warn {
+      color: var(--danger);
+    }
+
+    .tm-pad {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding-bottom: 6px;
+    }
+
+    .tm-dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 34px);
+      grid-template-rows: repeat(3, 34px);
+      gap: 3px;
+    }
+
+    .tm-dpad button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #4d7d67;
+      background: none;
+      border: 1px solid rgba(126, 240, 168, 0.18);
+      border-radius: 3px;
+      cursor: pointer;
+      transition: color .12s, border-color .12s, background .12s;
+    }
+
+    .tm-dpad button:disabled {
+      opacity: 0.25;
+      cursor: default;
+    }
+
+    .tm-dpad button:not(:disabled):hover {
+      color: #9fd8c2;
+      border-color: rgba(126, 240, 168, 0.4);
+    }
+
+    .tm-dpad button.held {
+      color: #04070a;
+      background: #7ef0a8;
+      border-color: #7ef0a8;
+      box-shadow: 0 0 14px rgba(126, 240, 168, 0.5);
+    }
+
+    #tmUp {
+      grid-area: 1/2;
+    }
+
+    #tmLeft {
+      grid-area: 2/1;
+    }
+
+    #tmCenter {
+      grid-area: 2/2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 9px;
+      color: #2f5546;
+    }
+
+    #tmRight {
+      grid-area: 2/3;
+    }
+
+    #tmDown {
+      grid-area: 3/2;
+    }
+
+    .tm-hint {
+      font-family: var(--mono);
+      font-size: calc(10px * var(--fs));
+      letter-spacing: 2px;
+      color: #3d6555;
+    }
+
+    /* ---------- endless mode's arcade printout ---------- */
+    #tmReport {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 8, 5, 0.94);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 150;
+      padding: 14px;
+    }
+
+    #tmReport.active {
+      display: flex;
+    }
+
+    .tm-report {
+      width: 100%;
+      max-width: 460px;
+      background: var(--bg-panel);
+      border: 3px solid var(--border);
+      padding: 14px;
+      text-align: center;
+    }
+
+    .tm-report .hd {
+      font-family: var(--mono);
+      font-size: calc(26px * var(--fs));
+      letter-spacing: 6px;
+      color: var(--danger);
+      text-shadow: 0 0 14px rgba(255, 95, 86, 0.6);
+      margin-bottom: 10px;
+    }
+
+    #tmReportCard {
+      width: 100%;
+      height: auto;
+      border: 2px solid var(--border);
+      background: #000;
+    }
+
+    .tm-report .btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 12px;
+    }
+
+    .tm-report .btns button {
+      font-family: var(--mono);
+      font-size: calc(13px * var(--fs));
+      padding: 8px 13px;
+      background: none;
+      color: var(--text-dim);
+      border: 2px solid var(--border);
+      cursor: pointer;
+    }
+
+    .tm-report .btns button:hover {
+      color: var(--term-fg);
+      border-color: var(--term-fg);
+    }
+
+    .tm-report .note {
+      font-family: var(--mono);
+      font-size: calc(11px * var(--fs));
+      color: var(--text-dim);
+      margin-top: 8px;
+      min-height: 1.4em;
+    }
+
+    /* =====================================================================
+       BASE SCENE (see src/base-scene.js)
+       ===================================================================== */
+    #bsRoot {
+      position: fixed;
+      inset: 0;
+      z-index: 130;
+      display: none;
+      background: #05040a;
+      overflow: hidden;
+    }
+
+    #bsRoot.active {
+      display: block;
+    }
+
+    #bsWrap {
+      position: absolute;
+    }
+
+    #bsWorld {
+      position: absolute;
+      inset: 0;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    #bsOverlay {
+      position: absolute;
+      inset: 0;
+    }
+
+    #bsFatal {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      z-index: 20;
+      display: none;
+      padding: 10px 14px;
+      background: #1a0508;
+      color: #ff5f56;
+      border-bottom: 1px solid #ff5f56;
+      font: 12px var(--mono);
+      white-space: pre-wrap;
+    }
+
   </style>
 </head>
 
@@ -3984,25 +4109,6 @@
     </div>
   </div>
 
-  <div id="baseOverlay">
-    <div class="base-panel term">
-      <div class="base-head">
-        <h3 class="term-title">基地 · 工程總表</h3>
-        <button id="baseCloseBtn">[[ 關閉 ]]</button>
-      </div>
-      <div class="src">各學派提交之工程進度回報 · 物資結算以協會帳為準</div>
-      <div class="res-bar" id="resBar"></div>
-      <div class="scene-wrap">
-        <canvas id="baseScene"></canvas>
-        <div class="scene-tip" id="sceneTip">點選地基上的建物以調閱該項工程</div>
-      </div>
-      <div class="tier-bar" id="tierBar"></div>
-      <div class="limit-bar" id="limitBar"></div>
-      <div class="base-body" id="baseBody"></div>
-      <div class="coach" id="baseCoach"></div>
-    </div>
-  </div>
-
   <div id="boot">
     <div class="boot-inner">
       <div class="boot-log" id="bootLog"></div>
@@ -4067,6 +4173,22 @@
         「他只是喝了一口茶。」<br>
         而全世界都認為，那是一種指引。
       </div>
+
+      <div class="set-label" style="margin-top:18px">音訊</div>
+      <label class="set-check"><input type="checkbox" id="setMusic" checked>播放主題曲</label>
+      <div class="set-slider">
+        <span>音量</span>
+        <input type="range" id="setVol" min="0" max="100" step="1" value="70">
+        <b id="setVolNum">70</b>
+      </div>
+
+      <div class="set-label" style="margin-top:18px">畫面</div>
+      <label class="set-check"><input type="checkbox" id="setFull">全螢幕</label>
+      <label class="set-check"><input type="checkbox" id="setCrt" checked>掃描線與暈影</label>
+
+      <div class="set-label" style="margin-top:18px">開發者</div>
+      <label class="set-check"><input type="checkbox" id="setDev">開發者模式</label>
+      <div class="set-note">開啟後畫面右上角會出現測試入口：可直接跳進基地、劇情 tilt maze、無限 tilt maze，不必照流程走一遍。</div>
       <button class="primary cmd" id="setCloseBtn">[[ 套用並返回 ]]</button>
     </div>
   </div>
@@ -4084,7 +4206,125 @@
   <!-- Tablet content lives outside the bundle so the copy can be edited without
        touching game logic. Classic script, not fetch(): this runs from file://
        under Electron, where fetching a local JSON is blocked. -->
+
+  <!-- ===================================================================
+       TITLE MENU — the first thing the game is
+       =================================================================== -->
+  <div id="titleMenu">
+    <!-- The key art already draws the console, the four button plates and their
+         labels. So the art is laid out at its own aspect ratio and our buttons
+         are transparent hit areas pinned to the plates it painted — measured
+         from the file itself, not eyeballed. Anything else double-draws the
+         labels or slides off the plates when the window changes shape. -->
+    <div class="tm-art" id="titleArt">
+      <img src="assets/title-menu.png" alt="天才模擬器" draggable="false">
+      <button class="tm-plate" id="menuNew" style="top:57.53%"></button>
+      <button class="tm-plate" id="menuLoad" style="top:65.72%" disabled></button>
+      <button class="tm-plate" id="menuSet" style="top:73.90%"></button>
+      <button class="tm-plate" id="menuQuit" style="top:82.09%"></button>
+      <div class="tm-locked" style="top:65.72%">尚未開放</div>
+    </div>
+  </div>
+
+  <!-- developer shortcuts; only rendered when the setting is on -->
+  <div id="devBar">
+    <button id="devBase">測試基地模式</button>
+    <button id="devStory">測試劇情 tilt maze</button>
+    <button id="devEndless">測試無限 tilt maze</button>
+  </div>
+
+  <!-- ===================================================================
+       TILT MAZE — driven entirely by src/tilt-maze.js
+       =================================================================== -->
+  <div id="tmRoot">
+    <header class="tm-top">
+      <div class="tm-brand">思想重力場 · TILT MAZE</div>
+      <div class="tm-clock">
+        <div class="lbl"><span id="tmClockLabel">頓悟窗口</span><span id="tmClockRight">— —</span></div>
+        <div class="track">
+          <div class="fill" id="tmClockFill"></div>
+        </div>
+      </div>
+      <div class="tm-score">
+        <div class="label" id="tmScoreLabel">思想重力場</div>
+        <div class="num" id="tmScoreNum">—</div>
+      </div>
+    </header>
+
+    <main class="tm-hero" id="tmHero">
+      <aside class="tm-side" id="tmWho">
+        <canvas id="tmWhoFx" class="tm-fx"></canvas>
+        <canvas id="tmNpcTok" class="tm-bust"></canvas>
+        <div class="nm" id="tmWhoName">&nbsp;</div>
+        <div class="tg" id="tmWhoTag"></div>
+        <div class="say" id="tmWhoSay"></div>
+        <div class="st" id="tmWhoState"></div>
+      </aside>
+
+      <section class="tm-field">
+        <div class="tm-boardwrap" id="tmBoard">
+          <canvas id="tmArena"></canvas>
+        </div>
+        <div class="tm-cap" id="tmCap"></div>
+      </section>
+
+      <aside class="tm-side" id="tmMe">
+        <canvas id="tmMeFx" class="tm-fx"></canvas>
+        <canvas id="tmPlayerTok" class="tm-bust"></canvas>
+        <div class="nm">大師</div>
+        <div class="st" id="tmMeState">觀測中</div>
+      </aside>
+    </main>
+
+    <div class="tm-pad">
+      <div class="tm-dpad">
+        <button id="tmUp" disabled title="北傾">▲</button>
+        <button id="tmLeft" disabled title="西傾">◀</button>
+        <div id="tmCenter">傾斜</div>
+        <button id="tmRight" disabled title="東傾">▶</button>
+        <button id="tmDown" disabled title="南傾">▼</button>
+      </div>
+      <div class="tm-hint" id="tmHint">按住方向鍵持續傾斜，放開後場地回正</div>
+    </div>
+  </div>
+
+  <div id="tmReport">
+    <div class="tm-report term">
+      <div class="hd">GAME OVER</div>
+      <canvas id="tmReportCard"></canvas>
+      <div class="btns">
+        <button id="tmAgain">再挑戰一次</button>
+        <button id="tmShot">存成圖片</button>
+        <button id="tmCopy">複製戰績</button>
+        <button id="tmQuit">離開</button>
+      </div>
+      <div class="note" id="tmReportNote"></div>
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       BASE SCENE — driven entirely by src/base-scene.js
+       =================================================================== -->
+  <div id="bsRoot">
+    <div id="bsWrap">
+      <canvas id="bsWorld"></canvas>
+      <canvas id="bsOverlay"></canvas>
+    </div>
+    <div id="bsFatal"></div>
+  </div>
+
+  <audio id="bgm" preload="auto"></audio>
+
   <script src="src/tablet-messages.js"></script>
+
+  <!-- The two big set pieces live in their own files. Both are self-contained
+       modules that the main script wires up; neither touches game state except
+       through the hooks it is handed. sheet-data.js is the building art, baked
+       to a data URI because a file:// <img> would taint the canvas we read
+       pixels back from. -->
+  <script src="src/sheet-data.js"></script>
+  <script src="src/base-scene.js"></script>
+  <script src="src/tilt-maze.js"></script>
 
   <script>
     (function () {
@@ -4659,6 +4899,11 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(spr, 0, 0, canvas.width, canvas.height);
       }
+
+      /* The tilt maze puts the same two faces either side of its board, so the
+         portrait pipeline is handed out deliberately rather than left global. */
+      window.PORT = PORT;
+      window.setPortrait = (cv, def, pose, cell) => setPortrait(cv, def, pose, cell);
 
       const livePortraits = new Set();
       function setPortrait(canvas, defKey, poseKey, cell) {
@@ -5388,7 +5633,6 @@
           wonders: [],   // wonder ids
           unlockedCards: [],
           coached: false, labCoached: false, labCoachOffered: false,
-          plots: Array.from({ length: PLOT_START }, () => ({ kind: null, left: 0 })),
           cardLv: {},
           plantCursor: 0
         };
@@ -5444,10 +5688,13 @@
       const logicSeg = $('logicSeg'), logicLabel = $('logicLabel');
       const battleBanner = $('battleBanner'), bannerBox = $('bannerBox'), bannerTitle = $('bannerTitle');
       const bannerText = $('bannerText'), bannerLoot = $('bannerLoot'), bannerBtn = $('bannerBtn'), bannerAltBtn = $('bannerAltBtn');
-      const baseBtn = $('baseBtn'), baseDot = $('baseDot'), baseOverlay = $('baseOverlay'), baseCloseBtn = $('baseCloseBtn');
-      const resBar = $('resBar'), tierBar = $('tierBar'), limitBar = $('limitBar'), baseBody = $('baseBody');
+      const baseBtn = $('baseBtn'), baseDot = $('baseDot');
+      const bsRoot = $('bsRoot'), titleMenu = $('titleMenu'), devBar = $('devBar'), bgm = $('bgm');
+      const menuNew = $('menuNew'), menuSet = $('menuSet'), menuQuit = $('menuQuit');
+      const setDev = $('setDev'), setMusic = $('setMusic'), setVol = $('setVol');
+      const setVolNum = $('setVolNum'), setFull = $('setFull'), setCrt = $('setCrt');
+      const devBase = $('devBase'), devStory = $('devStory'), devEndless = $('devEndless');
       const newsList = $('newsList'), basePeekBody = $('basePeekBody'), basePeekBtn = $('basePeekBtn');
-      const baseScene = $('baseScene'), baseCoach = $('baseCoach');
       const setBtn = $('setBtn'), setOverlay = $('setOverlay'), setCloseBtn = $('setCloseBtn'), fsRow = $('fsRow');
       const spot = $('spot'), spotVeil = $('spotVeil'), spotRing = $('spotRing'),
         spotCallout = $('spotCallout'), spotArrow = $('spotArrow');
@@ -6052,13 +6299,22 @@
       ];
       // defaults to 大 because the stock size was reported as a strain; the
       // setting persists once the player picks their own
-      let settings = { fs: 'm' };
+      let settings = { fs: 'm', dev: false, music: true, vol: 70, full: false, crt: true };
 
       function applySettings() {
         const step = FS_STEPS.find(s => s.k === settings.fs) || FS_STEPS[2];
         document.documentElement.style.setProperty('--fs', step.v);
+        document.body.classList.toggle('no-crt', settings.crt === false);
+        if (bgm) bgm.volume = clampVol(settings.vol) / 100;
       }
+      function clampVol(v) { v = Number(v); return isNaN(v) ? 70 : Math.max(0, Math.min(100, v)); }
       function renderSettings() {
+        setDev.checked = !!settings.dev;
+        setMusic.checked = settings.music !== false;
+        setCrt.checked = settings.crt !== false;
+        setVol.value = clampVol(settings.vol);
+        setVolNum.textContent = clampVol(settings.vol);
+        setFull.checked = !!document.fullscreenElement;
         fsRow.innerHTML = '';
         FS_STEPS.forEach(s => {
           const b = document.createElement('button');
@@ -6071,9 +6327,15 @@
         });
       }
       async function persistSettings() {
-        try { await window.storage.set('settings', JSON.stringify(settings), false); } catch (e) { }
+        const raw = JSON.stringify(settings);
+        try { localStorage.setItem('gs.settings', raw); } catch (e) { }
+        try { await window.storage.set('settings', raw, false); } catch (e) { }
       }
       async function loadSettings() {
+        try {
+          const raw = localStorage.getItem('gs.settings');
+          if (raw) settings = Object.assign(settings, JSON.parse(raw) || {});
+        } catch (e) { }
         try {
           const r = await window.storage.get('settings', false);
           if (r && r.value) settings = Object.assign(settings, JSON.parse(r.value) || {});
@@ -6085,6 +6347,54 @@
         if (opening) renderSettings();
         setOverlay.classList.toggle('active');
       }
+
+      /* Developer mode is a setting, not a URL flag, because the person who
+         needs it most is the one playing the packaged build. */
+      function applyDevMode() { devBar.classList.toggle('on', !!settings.dev); }
+
+      setDev.addEventListener('change', () => {
+        settings.dev = setDev.checked; persistSettings(); applyDevMode();
+      });
+      setMusic.addEventListener('change', () => {
+        settings.music = setMusic.checked; persistSettings();
+        if (settings.music) startTheme(); else stopTheme();
+      });
+      setVol.addEventListener('input', () => {
+        settings.vol = clampVol(setVol.value);
+        setVolNum.textContent = settings.vol;
+        bgm.volume = settings.vol / 100;
+      });
+      setVol.addEventListener('change', persistSettings);
+      setCrt.addEventListener('change', () => {
+        settings.crt = setCrt.checked; persistSettings(); applySettings();
+      });
+      setFull.addEventListener('change', () => {
+        if (setFull.checked) document.documentElement.requestFullscreen().catch(() => { });
+        else if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+      });
+      document.addEventListener('fullscreenchange', () => { setFull.checked = !!document.fullscreenElement; });
+
+      devBase.addEventListener('click', () => {
+        if (!base) base = freshBase();
+        hideTitleMenu();
+        if (TiltMaze.isOpen()) TiltMaze.close();
+        openBase();
+      });
+      devStory.addEventListener('click', () => {
+        hideTitleMenu();
+        if (BaseScene.isOpen()) closeBase();
+        const fac = pick(activeFactions());
+        currentNPC = createNPC(fac);
+        TiltMaze.story(mazeIndex, {
+          faction: fac, name: currentNPC.name, question: currentNPC.question,
+          label: META[fac].label, color: `var(${META[fac].varc})`
+        }, res => { mazeIndex++; if (res.won) runEncounterSequence('right'); else runFlatterySequence(); });
+      });
+      devEndless.addEventListener('click', () => {
+        hideTitleMenu();
+        if (BaseScene.isOpen()) closeBase();
+        TiltMaze.endless(() => { });
+      });
 
       /* ================= PROGRESSIVE DISCLOSURE =================
          A first-time player used to get every panel at once, which buries the
@@ -6205,33 +6515,17 @@
       }
       function baseMaxHp() { return 50 + base.lv.meditation * 8 + (base.tier - 1) * 6; }
       function baseStartEnergy() { return 3 + base.lv.tower; }
+      /* Cards used to be levelled one at a time in the base panel. The base is a
+         place now, so the buildings carry it: the 重譯爐 sharpens every card in the
+         deck, and the two production buildings keep their own card as before. */
       function cardValue(key) {
         let v = CARD_DEFS[key].value;
         if (key === 'tea') v += base.lv.teahouse * 2;
         if (key === 'tap') v += base.lv.workshop * 2;
-        v += (base.cardLv[key] || 0);
+        v += (base.lv.retrans || 0);
         return v;
       }
 
-      /* 牌組強化: the sink that never runs dry. Buildings cap out, cards keep
-         taking investment, so gathering stays worth doing all game. */
-      const CARD_LV_MAX = 10;
-      function cardUpCost(lv) {
-        const n = lv + 1;
-        return { supply: Math.round(10 * n * n * 0.72) + 8, part: Math.round(9 * n * n * 0.72) + 6, essence: 0 };
-      }
-      function upgradeCard(key) {
-        const lv = base.cardLv[key] || 0;
-        if (lv >= CARD_LV_MAX) return;
-        const cost = cardUpCost(lv);
-        if (!canAfford(cost)) return;
-        payCost(cost);
-        base.cardLv[key] = lv + 1;
-        const d = CARD_DEFS[key];
-        showAchToast(`${d.icon}【${d.name}】強化至 +${lv + 1}`);
-        evaluateAchievements();
-        renderBase();
-      }
       function playerDeckList() {
         const deck = STARTING_DECK.slice();
         if (base.lv.workshop >= 2) deck.push('glasses');
@@ -6968,531 +7262,6 @@
         }
       }
 
-      /* ================= PLOTS (grow across days) =================
-         The slow, tend-it-daily layer: plant, wait real days, harvest. */
-      const PLOT_DEFS = {
-        tea: { name: '茶樹', icon: '🍵', days: 2, cost: { supply: 6, part: 0 }, yield: { supply: 18, part: 0, essence: 0 } },
-        scrap: { name: '廢鐵藤', icon: '⚙️', days: 3, cost: { supply: 0, part: 8 }, yield: { supply: 0, part: 26, essence: 0 } },
-        idea: { name: '靈感菌', icon: '💡', days: 4, cost: { supply: 14, part: 12 }, yield: { supply: 12, part: 10, essence: 1 } },
-        myth: { name: '傳說樹', icon: '🌳', days: 5, cost: { supply: 40, part: 34 }, yield: { supply: 74, part: 62, essence: 1 } },
-        relic: { name: '神髓晶', icon: '💎', days: 6, cost: { supply: 60, part: 70, essence: 1 }, yield: { supply: 0, part: 0, essence: 4 } }
-      };
-      const PLOT_START = 4, PLOT_MAX = 9;
-      function plotExpandCost(n) { return { supply: 30 + n * n * 7, part: 26 + n * n * 6, essence: 0 }; }
-      function expandPlots() {
-        const n = base.plots.length;
-        if (n >= PLOT_MAX) return;
-        const cost = plotExpandCost(n - PLOT_START + 1);
-        if (!canAfford(cost)) return;
-        payCost(cost);
-        base.plots.push({ kind: null, left: 0 });
-        showAchToast(`🟫 開墾了第 ${base.plots.length} 塊地`);
-        renderBase();
-      }
-
-      function growPlots() {
-        if (!base) return;
-        let ripened = 0;
-        base.plots.forEach(p => {
-          if (p.kind && p.left > 0) { p.left--; if (p.left === 0) ripened++; }
-        });
-        if (ripened > 0) {
-          pushTicker(`【基地】苗圃有 ${ripened} 塊地成熟了`);
-          updateBaseDot();
-        }
-      }
-
-      function plotClick(i) {
-        const p = base.plots[i];
-        if (p.kind && p.left === 0) {                       // harvest
-          const d = PLOT_DEFS[p.kind];
-          addRes(d.yield);
-          showAchToast(`${d.icon} 收成 ${d.name}　${lootText(d.yield)}`);
-          base.plots[i] = { kind: null, left: 0 };
-          renderBase(); return;
-        }
-        if (p.kind) { showAchToast(`${PLOT_DEFS[p.kind].icon} 還要 ${p.left} 天`); return; }
-        // empty: offer what can be planted
-        const opts = Object.keys(PLOT_DEFS).filter(k => canAfford(PLOT_DEFS[k].cost));
-        if (opts.length === 0) { showAchToast('資源不足，種不下去'); return; }
-        const k = opts[(base.plantCursor || 0) % opts.length];
-        base.plantCursor = (base.plantCursor || 0) + 1;      // cycle through affordable crops
-        payCost(PLOT_DEFS[k].cost);
-        base.plots[i] = { kind: k, left: PLOT_DEFS[k].days };
-        showAchToast(`${PLOT_DEFS[k].icon} 種下 ${PLOT_DEFS[k].name}（${PLOT_DEFS[k].days} 天）`);
-        renderBase();
-      }
-
-      function plotsHtml() {
-        let h = '<div class="base-sect">苗圃（每過一天成長一次）</div><div class="plot-row">';
-        base.plots.forEach((p, i) => {
-          if (!p.kind) {
-            h += `<div class="plot" data-p="${i}"><div class="pi">🟫</div><div class="pn">空地</div></div>`;
-          } else {
-            const d = PLOT_DEFS[p.kind];
-            const ripe = p.left === 0;
-            h += `<div class="plot${ripe ? ' ripe' : ''}" data-p="${i}">
-                <div class="pi">${ripe ? d.icon : '🌱'}</div>
-                <div class="pn">${ripe ? '可收成' : d.name + ' ' + p.left + '天'}</div>
-              </div>`;
-          }
-        });
-        h += '</div>';
-        const n = base.plots.length;
-        if (n < PLOT_MAX) {
-          const c = plotExpandCost(n - PLOT_START + 1);
-          h += `<button class="plot-expand bld-btn" style="margin-bottom:9px" ${canAfford(c) ? '' : 'disabled'}>
-              🟫 開墾第 ${n + 1} 塊地　${costText(c)}</button>`;
-        }
-        h += '<div class="empty-note">點空地輪流種下負擔得起的作物；成熟後點一下收成。長週期的作物報酬高得多。</div>';
-        return h;
-      }
-
-      /* ================= BASE SCENE (isometric) =================
-         Buildings are actually built on a plot: each one occupies a tile, grows
-         with its level, and is clickable. Wonders take the back row. */
-      const SCENE = { W: 520, H: 230, tw: 74, th: 37, ox: 260, oy: 96 };
-      const PLOTS = [
-        { key: 'teahouse', gx: -1, gy: -1 },
-        { key: 'workshop', gx: 0, gy: -1 },
-        { key: 'meditation', gx: 1, gy: 0 },
-        { key: 'lab', gx: 0, gy: 1 },
-        { key: 'tower', gx: -1, gy: 0 }
-      ];
-      let sceneHot = [];   // hit boxes rebuilt on every draw
-
-      function isoPos(gx, gy) {
-        return { x: SCENE.ox + (gx - gy) * SCENE.tw / 2, y: SCENE.oy + (gx + gy) * SCENE.th / 2 };
-      }
-      function isoTile(ctx, x, y, top, side, lift) {
-        const hw = SCENE.tw / 2, hh = SCENE.th / 2, L = lift || 0;
-        ctx.fillStyle = side;
-        ctx.beginPath();
-        ctx.moveTo(x - hw, y - L); ctx.lineTo(x, y + hh - L); ctx.lineTo(x, y + hh); ctx.lineTo(x - hw, y);
-        ctx.closePath(); ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(x + hw, y - L); ctx.lineTo(x, y + hh - L); ctx.lineTo(x, y + hh); ctx.lineTo(x + hw, y);
-        ctx.closePath(); ctx.fill();
-        ctx.fillStyle = top;
-        ctx.beginPath();
-        ctx.moveTo(x, y - hh - L); ctx.lineTo(x + hw, y - L); ctx.lineTo(x, y + hh - L); ctx.lineTo(x - hw, y - L);
-        ctx.closePath(); ctx.fill();
-      }
-      function isoBox(ctx, x, y, w, d, h, top, left, right) {
-        const hw = w / 2, hh = d / 2;
-        ctx.fillStyle = left;
-        ctx.beginPath(); ctx.moveTo(x - hw, y - h); ctx.lineTo(x, y + hh - h); ctx.lineTo(x, y + hh); ctx.lineTo(x - hw, y); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = right;
-        ctx.beginPath(); ctx.moveTo(x + hw, y - h); ctx.lineTo(x, y + hh - h); ctx.lineTo(x, y + hh); ctx.lineTo(x + hw, y); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = top;
-        ctx.beginPath(); ctx.moveTo(x, y - hh - h); ctx.lineTo(x + hw, y - h); ctx.lineTo(x, y + hh - h); ctx.lineTo(x - hw, y - h); ctx.closePath(); ctx.fill();
-      }
-
-      const BLD_SKIN = {
-        teahouse: { top: '#6fd6c8', l: '#2f7d74', r: '#1f5a54' },
-        workshop: { top: '#ffa552', l: '#a85a22', r: '#7a3f16' },
-        meditation: { top: '#c79bff', l: '#6b3fa8', r: '#4b2b78' },
-        lab: { top: '#7fc4ff', l: '#2f6ea8', r: '#1f4d78' },
-        tower: { top: '#ffd23f', l: '#a8801a', r: '#7a5c10' }
-      };
-
-      function drawBaseScene() {
-        if (!baseScene || !base) return;
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
-        baseScene.width = SCENE.W * dpr; baseScene.height = SCENE.H * dpr;
-        baseScene.style.aspectRatio = SCENE.W + ' / ' + SCENE.H;
-        const ctx = baseScene.getContext('2d');
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, SCENE.W, SCENE.H);
-        sceneHot = [];
-
-        // sky glow gets richer with tech tier — the base visibly ages up
-        const glow = ctx.createRadialGradient(SCENE.ox, 40, 10, SCENE.ox, 40, 260);
-        glow.addColorStop(0, ['rgba(255,180,90,0.20)', 'rgba(255,180,90,0.22)', 'rgba(140,200,255,0.20)', 'rgba(200,140,255,0.26)'][base.tier - 1] || 'rgba(255,180,90,0.2)');
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow; ctx.fillRect(0, 0, SCENE.W, SCENE.H);
-
-        // ground plots, far to near so nearer tiles overlap correctly
-        const order = PLOTS.slice().sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy));
-        // empty ground under everything
-        order.forEach(p => {
-          const { x, y } = isoPos(p.gx, p.gy);
-          isoTile(ctx, x, y, '#2b1f45', '#1b1330', 3);
-        });
-
-        // wonders sit on the back row
-        base.wonders.forEach((wid, i) => {
-          const w = WONDER_DEFS.find(x => x.id === wid); if (!w) return;
-          const { x, y } = isoPos(-2 + i, -2);
-          isoTile(ctx, x, y, '#3a2a58', '#241a3a', 3);
-          isoBox(ctx, x, y - 3, 30, 15, 26 + i * 4, '#ffe9a8', '#b09030', '#8a6f22');
-          ctx.font = '15px serif'; ctx.textAlign = 'center';
-          ctx.fillText(w.icon, x, y - 32 - i * 4);
-        });
-
-        order.forEach(p => {
-          const def = BUILDING_DEFS[p.key];
-          const lv = base.lv[p.key];
-          const { x, y } = isoPos(p.gx, p.gy);
-          const skin = BLD_SKIN[p.key];
-          if (lv > 0) {
-            const h = 14 + lv * 9;
-            const w = 40 + Math.min(12, lv * 3);
-            isoBox(ctx, x, y - 3, w, w * 0.5, h, skin.top, skin.l, skin.r);
-            // floor bands read as levels at a glance
-            for (let i = 1; i < lv; i++) {
-              ctx.fillStyle = 'rgba(0,0,0,0.30)';
-              ctx.fillRect(x - w / 2, y - 3 - h + i * (h / lv), w, 2);
-            }
-            ctx.font = '17px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(def.icon, x, y - 3 - h - 9);
-            ctx.font = 'bold 10px ui-monospace, monospace';
-            ctx.fillStyle = '#ffd23f';
-            ctx.fillText('Lv' + lv, x, y + 10);
-          } else {
-            ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-            ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(x, y - SCENE.th / 2 - 3); ctx.lineTo(x + SCENE.tw / 2, y - 3);
-            ctx.lineTo(x, y + SCENE.th / 2 - 3); ctx.lineTo(x - SCENE.tw / 2, y - 3); ctx.closePath();
-            ctx.stroke(); ctx.setLineDash([]);
-            ctx.font = '15px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.globalAlpha = 0.4; ctx.fillText(def.icon, x, y - 4); ctx.globalAlpha = 1;
-            ctx.font = '9px ui-monospace, monospace'; ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            ctx.fillText('空地', x, y + 9);
-          }
-          sceneHot.push({ key: p.key, x, y, w: SCENE.tw, h: 60 });
-        });
-      }
-
-      function sceneClick(ev) {
-        const r = baseScene.getBoundingClientRect();
-        const sx = (ev.clientX - r.left) * (SCENE.W / r.width);
-        const sy = (ev.clientY - r.top) * (SCENE.H / r.height);
-        let best = null, bestD = 1e9;
-        sceneHot.forEach(h => {
-          const dx = Math.abs(sx - h.x) / (h.w / 2), dy = Math.abs(sy - (h.y - 14)) / (h.h / 2);
-          const d = dx + dy;
-          if (d < 1.15 && d < bestD) { bestD = d; best = h; }
-        });
-        if (best) focusBuilding(best.key);
-      }
-
-      function focusBuilding(key) {
-        const card = baseBody.querySelector(`.bld[data-k="${key}"]`);
-        if (!card) return;
-        baseBody.querySelectorAll('.bld').forEach(c => c.classList.remove('focus'));
-        card.classList.add('focus');
-        /* Scroll the list itself rather than calling scrollIntoView. The card lives
-           in a nested scroll container that renderBase() rebuilds from scratch, and
-           a smooth scrollIntoView against a just-replaced node routinely never
-           landed — the coach would highlight 研究所 while leaving it below the fold,
-           i.e. tell the player to press a button they cannot see. Setting scrollTop
-           is synchronous and cannot be lost to a re-render.
-           Measured with rects, not offsetTop: neither .base-body nor .base-panel is
-           positioned, so offsetTop resolves against #baseOverlay and is off by the
-           whole header + scene block.
-           Deferred until the panel actually has layout: toggleBase() flips
-           #baseOverlay to visible on its LAST line, so the first render runs while
-           the whole panel is display:none and every rect reads 0 — scrolling then
-           is a silent no-op, which is why the coach used to highlight a card that
-           stayed below the fold. */
-        let tries = 0;
-        const centre = () => {
-          if (!baseBody.clientHeight) {
-            if (tries++ < 30) requestAnimationFrame(centre);
-            return;
-          }
-          const cr = card.getBoundingClientRect(), br = baseBody.getBoundingClientRect();
-          baseBody.scrollTop += (cr.top - br.top) - (br.height - cr.height) / 2;
-        };
-        centre();
-      }
-
-      /* ================= BASE ONBOARDING =================
-         Each step points at one thing and will not advance until it is true, so the
-         player learns by doing.
-    
-         Two programs, keyed by when they are needed rather than run as one block:
-         `base` on first opening the base (chapter 1), `lab` on reaching chapter 2,
-         which is when 試探 unlocks and becomes mandatory. `noSkip` marks a program
-         whose steps gate content the player cannot proceed without — the chapter-2
-         Rival is unwinnable with no housed talent, so skipping is not offered. */
-      const COACH_PROGRAMS = {};
-      COACH_PROGRAMS.base = [
-        {
-          t: '這裡是你的基地', b: '上面那塊地基就是基地本體。有建築的地方會真的蓋出房子，虛線的是還沒開發的空地。\n\n你不需要在戰鬥中變強——你在這裡變強，戰鬥自然就贏了。',
-          done: () => true, cta: '我看到了'
-        },
-        {
-          t: '資源從三個地方來', b: '📦 物資和 ⚙️ 零件會從三個管道進帳：\n\n① 每天晚上，生產建築自己產出\n② 影響力越高，支持者送來的隨機物資越多\n③ 打贏辯論戰，掉落固定的一筆\n\n💎 神髓只有打贏世界威脅才拿得到，非常稀有。',
-          done: () => true, cta: '懂了'
-        },
-        {
-          t: '現在，蓋一次給你看', b: '把 🔧 工坊升一級試試。\n\n工坊每升一級，你的【敲擊桌面】就永久 +2 傷害——這就是基地和戰鬥的連動。點地基上的工坊，或直接按下面那張卡的升級鈕。',
-          done: () => base.lv.workshop >= 2, cta: null, focus: 'workshop'
-        },
-        {
-          t: '你剛剛變強了', b: '回頭看一眼最下面的「目前牌組」——【敲擊桌面】的數字已經跟著變了，而且工坊在地基上也長高了一層。\n\n每一章結尾都有一個握有關鍵資源的人擋在前面，他每回合會回復 HP。牌不夠強就是打不動他。開打前記得回來這裡。',
-          done: () => true, cta: '開始經營'
-        }
-      ];
-
-      /* Chapter 2 onboarding. Not skippable: every step is a hard prerequisite for
-         the chapter-2 Rival, whose second logic is sealed behind 🔍 試探. */
-      COACH_PROGRAMS.lab = [
-        {
-          t: '協會送來一位人才', b: '你在上一章說服的那位，現在人就在門外——但他沒有地方待。\n\n🔬 研究所是安置人才的地方。第一級<b>不用任何資源</b>，直接蓋起來。',
-          done: () => base.lv.lab >= 1, cta: null, focus: 'lab'
-        },
-        {
-          t: '把他安置進去', b: '研究所蓋好了。到下面的「人才安置」把他<b>安置</b>進去。\n\n安置之後你會拿到兩件東西：他的專屬卡牌，以及一次 <b>🔍 試探</b>。',
-          done: () => housedCount() >= 1, cta: null, focus: 'lab'
-        },
-        {
-          t: '🔍 試探是這一章的關鍵', b: '從這一章開始，對手不只會變強——他們會<b>換掉整套規則</b>。\n\n你看得到對方有幾套邏輯，但看不到裡面是什麼。卡住的時候按 <b>🔍 試探</b>：不花能量、不結束回合，只是安靜看著對方，他會自己說溜嘴。\n\n每位安置的人才給你一次試探（最多 3 次）。\n\n去路口找那個自稱勁敵的人練一場——那一場的試探不會消耗次數。',
-          done: () => true, cta: '去會會他'
-        }
-      ];
-
-      let coachStep = -1, coachProgram = 'base';
-      function coachSteps() { return COACH_PROGRAMS[coachProgram] || []; }
-
-      /* Chapter 2 onward, and only while there is actually someone to house — a
-         player who already built the lab and housed their talent has learned this
-         by doing and never sees the program. */
-      function needsLabCoach() {
-        return chapter >= 2 && base && !base.labCoached
-          && base.talents.length > 0 && probeCharges() === 0;
-      }
-
-      function startCoach(key) {
-        coachProgram = key;
-        coachStep = 0;
-        renderCoach();
-      }
-
-      function startBaseCoach() {
-        if (base.coached) return;
-        coachProgram = 'base';
-        /* Step 3 will not advance until the workshop is actually upgraded, and its
-           Next button stays disabled until then. But the upgrade to Lv2 costs 36📦
-           while the player is holding 24📦 (34📦 even after the first Rival's loot),
-           so the gate was unsatisfiable: the tutorial dead-ended with 跳過導覽 as
-           the only way out, and the base read as broken on first contact.
-           Front the demonstration itself. The Association bankrolling a build it
-           does not understand is entirely in character, and this only ever tops up
-           to the exact shortfall, so it cannot become a general resource faucet. */
-        const need = BUILDING_DEFS.workshop.cost(base.lv.workshop + 1);
-        if (!canAfford(need)) {
-          base.res.supply = Math.max(base.res.supply, need.supply || 0);
-          base.res.part = Math.max(base.res.part, need.part || 0);
-          pushTicker('協會公告：已預先撥付大師首次工程所需之全部物資，無需申請');
-        }
-        coachStep = 0;
-        renderCoach();
-      }
-      function finishCoach() {
-        if (coachProgram === 'lab') { base.labCoached = true; markTablet('probe'); }
-        else base.coached = true;
-        coachStep = -1;
-      }
-
-      function renderCoach() {
-        const steps = coachSteps();
-        if (coachStep < 0 || coachStep >= steps.length) {
-          baseCoach.classList.remove('active');
-          baseBody.querySelectorAll('.bld').forEach(c => c.classList.remove('focus'));
-          return;
-        }
-        const s = steps[coachStep];
-        const ready = s.done();
-        const skippable = coachProgram !== 'lab';
-        const title = coachProgram === 'lab' ? '🔬 研究所導覽' : '📘 基地導覽';
-        baseCoach.classList.add('active');
-        baseCoach.innerHTML = `
-      <div class="ct">${title} ${coachStep + 1} / ${steps.length}　${s.t}</div>
-      <div class="cb">${s.b.replace(/\n/g, '<br>')}</div>
-      <div class="crow">
-        <button id="coachNext" ${ready ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'}>
-          ${ready ? (s.cta || '下一步 →') : '↑ 先完成上面那件事'}
-        </button>
-        ${skippable ? '<button class="skip" id="coachSkip">跳過導覽</button>' : ''}
-      </div>`;
-        if (s.focus) focusBuilding(s.focus);
-        const nx = $('coachNext');
-        if (ready && nx) nx.addEventListener('click', () => {
-          coachStep++;
-          if (coachStep >= steps.length) finishCoach();
-          renderBase();
-        });
-        const sk = $('coachSkip');
-        if (sk) sk.addEventListener('click', () => {
-          finishCoach();
-          baseCoach.classList.remove('active');
-          renderBase();
-        });
-      }
-
-      /* ================= BASE UI ================= */
-      function renderBase() {
-        resBar.innerHTML =
-          `<span>📦 物資 <b>${base.res.supply}</b></span>` +
-          `<span>⚙️ 零件 <b>${base.res.part}</b></span>` +
-          `<span>💎 神髓 <b>${base.res.essence}</b></span>`;
-
-        const prod = dailyProduction();
-        tierBar.innerHTML = `科技階級：<b>${TECH_TIERS[base.tier]}</b>（擊敗世界威脅可推進）` +
-          `　│　每日產出 📦${prod.supply} ⚙️${prod.part}`;
-
-        const lim = currentLimit();
-        limitBar.innerHTML = lim ? `${lim.icon} <b>${lim.name}</b>　${lim.desc}` : '目前沒有資源限制。';
-        limitBar.style.display = lim ? '' : 'none';
-
-        let html = '';
-
-        html += plotsHtml();
-
-        html += '<div class="base-sect">生產與強化</div>';
-        ['teahouse', 'workshop', 'meditation'].forEach(k => { html += buildingHtml(k); });
-
-        html += '<div class="base-sect">科技設施</div>';
-        ['lab', 'tower'].forEach(k => { html += buildingHtml(k); });
-
-        html += '<div class="base-sect">智囊團（研究所安置）</div>';
-        if (base.talents.length === 0) {
-          html += '<div class="empty-note">還沒有招募到人才。擊敗每一章結尾握有關鍵資源的人，就能把他請進基地。</div>';
-        } else {
-          html += `<div class="empty-note">研究所可安置 <b>${labSlots()}</b> 位，目前已安置 <b>${housedCount()}</b> 位。</div>`;
-          base.talents.forEach((t, i) => {
-            const card = CARD_DEFS[t.card];
-            html += `<div class="talent">
-          <b>${t.name}</b>　<span style="color:var(--text-dim)">${t.title}</span><br>
-          <span class="unlocks">安置後解鎖：${card.icon}【${card.name}】×2</span><br>
-          <button class="talent-btn" data-i="${i}" ${(!t.housed && housedCount() >= labSlots()) ? 'disabled' : ''}>
-            ${t.housed ? '✔ 已安置（點此撤出）' : (housedCount() >= labSlots() ? '研究所空間不足' : '安置到研究所')}
-          </button>
-        </div>`;
-          });
-        }
-
-        html += '<div class="base-sect">奇觀建築（成就解鎖 · 純觀賞）</div>';
-        WONDER_DEFS.forEach(w => {
-          const built = base.wonders.includes(w.id);
-          const unlocked = hasAch(w.ach);
-          const achName = (ACHIEVEMENT_DEFS.find(a => a.id === w.ach) || {}).name || '';
-          html += `<div class="bld${unlocked ? '' : ' locked'}">
-        <div class="bi">${built ? w.icon : (unlocked ? w.icon : '🔒')}</div>
-        <div class="bmain">
-          <div><span class="bname">${w.name}</span>${built ? '<span class="blv">已落成</span>' : ''}</div>
-          <div class="bdesc">${unlocked ? w.desc : `需先達成成就「${achName}」`}</div>
-          ${built ? '' : `<button class="wonder-btn" data-id="${w.id}" ${(unlocked && canAfford(w.cost)) ? '' : 'disabled'}>建造　${costText(w.cost)}</button>`}
-        </div>
-      </div>`;
-        });
-
-        html += '<div class="base-sect">牌組強化（永久，可一直投資）</div>';
-        const counts = {};
-        playerDeckList().forEach(k => { counts[k] = (counts[k] || 0) + 1; });
-        Object.keys(counts).forEach(k => {
-          const d = CARD_DEFS[k];
-          const lv = base.cardLv[k] || 0;
-          const maxed = lv >= CARD_LV_MAX;
-          const cost = cardUpCost(lv);
-          html += `<div class="bld">
-        <div class="bi">${d.icon}</div>
-        <div class="bmain">
-          <div><span class="bname">${d.name}</span><span class="blv">×${counts[k]}　強化 +${lv} / ${CARD_LV_MAX}</span></div>
-          <div class="beff">${d.text(cardValue(k))}</div>
-          <button class="card-btn" data-c="${k}" ${(!maxed && canAfford(cost)) ? '' : 'disabled'}>
-            ${maxed ? '已達強化上限' : `強化 +${lv + 1}　${costText(cost)}`}
-          </button>
-        </div>
-      </div>`;
-        });
-
-        baseBody.innerHTML = html;
-
-        baseBody.querySelectorAll('.bld-btn').forEach(b => {
-          b.addEventListener('click', () => upgradeBuilding(b.dataset.k));
-        });
-        baseBody.querySelectorAll('.talent-btn').forEach(b => {
-          if (!b.disabled) b.addEventListener('click', () => toggleTalent(+b.dataset.i));
-        });
-        baseBody.querySelectorAll('.wonder-btn').forEach(b => {
-          if (!b.disabled) b.addEventListener('click', () => buildWonder(b.dataset.id));
-        });
-        baseBody.querySelectorAll('.plot').forEach(p => {
-          p.addEventListener('click', () => plotClick(+p.dataset.p));
-        });
-        baseBody.querySelectorAll('.card-btn').forEach(b => {
-          if (!b.disabled) b.addEventListener('click', () => upgradeCard(b.dataset.c));
-        });
-        const pe = baseBody.querySelector('.plot-expand');
-        if (pe && !pe.disabled) pe.addEventListener('click', expandPlots);
-
-        drawBaseScene();
-        renderCoach();
-        renderBasePeek();
-      }
-
-      function buildingHtml(k) {
-        const def = BUILDING_DEFS[k];
-        const lv = base.lv[k];
-        const max = buildingMax(k);
-        const maxed = lv >= max;
-        const cost = def.cost(lv + 1);
-        const affordable = canAfford(cost);
-        return `<div class="bld" data-k="${k}">
-      <div class="bi">${def.icon}</div>
-      <div class="bmain">
-        <div><span class="bname">${def.name}</span><span class="blv">Lv ${lv} / ${max}</span></div>
-        <div class="bdesc">${def.desc}</div>
-        <div class="beff">${lv > 0 ? def.effect(lv) : '（尚未建造）'}</div>
-        <button class="bld-btn" data-k="${k}" ${(!maxed && affordable) ? '' : 'disabled'}>
-          ${maxed ? '已達目前科技上限' : `${lv === 0 ? '建造' : '升級'}至 Lv ${lv + 1}　${costText(cost)}`}
-        </button>
-      </div>
-    </div>`;
-      }
-
-      function upgradeBuilding(k) {
-        const def = BUILDING_DEFS[k];
-        const lv = base.lv[k];
-        if (lv >= buildingMax(k)) return;
-        const cost = def.cost(lv + 1);
-        if (!canAfford(cost)) return;
-        payCost(cost);
-        base.lv[k] = lv + 1;
-        showAchToast(`${def.icon} ${def.name} 升級至 Lv ${lv + 1}`);
-        evaluateAchievements();
-        renderBase();
-      }
-
-      function toggleTalent(i) {
-        const t = base.talents[i];
-        if (!t.housed && housedCount() >= labSlots()) return;
-        t.housed = !t.housed;
-        if (t.housed) {
-          const c = CARD_DEFS[t.card];
-          showAchToast(`🔬 ${t.name} 已入駐　解鎖 ${c.icon}【${c.name}】`);
-        }
-        updateBaseDot();
-        renderBase();
-      }
-
-      function buildWonder(id) {
-        const w = WONDER_DEFS.find(x => x.id === id);
-        if (!w || base.wonders.includes(id) || !hasAch(w.ach) || !canAfford(w.cost)) return;
-        payCost(w.cost);
-        base.wonders.push(id);
-        wondersBuilt = base.wonders.length;
-        showAchToast(`${w.icon} 奇觀落成：${w.name}`);
-        pushTicker(`【奇觀落成】大師基地建成「${w.name}」，觀光人潮已封鎖周邊道路`);
-        evaluateAchievements();
-        renderBase();
-      }
-
       function updateBaseDot() {
         if (pendingTalents() > 0) baseDot.classList.add('show');
         else baseDot.classList.remove('show');
@@ -7502,37 +7271,49 @@
          any guidance path that blind-toggles will CLOSE the base whenever another
          path already opened it — which is exactly how the chapter-2 redirect and
          the forced lab coach cancelled each other out. */
-      function openBase() { if (!baseOverlay.classList.contains('active')) toggleBase(); }
+      function openBase() { if (!BaseScene.isOpen()) toggleBase(); }
 
+      /* There is no base panel any more: the base IS the place. Walking around
+         it, building on it and upgrading in it are the same act, and the scene
+         writes straight back into `base` through the hooks attached at boot. */
       function toggleBase() {
-        const opening = !baseOverlay.classList.contains('active');
-        if (opening) {
-          // the forced intro is satisfied the moment the player actually goes in
-          if (spot.dataset.gate === 'base') {
-            spot.dataset.gate = '';
-            spot.classList.remove('active');
-            dropTarget();
-            baseBtn.classList.remove('calling');
-          }
-          if (!base) base = freshBase();
-          if (!base.coached && coachStep < 0) startBaseCoach();
-          else if (needsLabCoach() && coachStep < 0) startCoach('lab');
-          renderBase();
-        } else {
-          renderBasePeek();
-          markTablet('base');   // they have now actually been inside
-          if (baseAfterIntro) {
-            const fn = baseAfterIntro; baseAfterIntro = null;
-            revealUI('apps', { silent: true });
-            baseOverlay.classList.remove('active');
-            setTimeout(() => {
-              const p = UI_PIECES.apps;
-              spotlight(p.el(), p.title, p.body, null, fn);
-            }, 260);
-            return;
-          }
+        if (BaseScene.isOpen()) { closeBase(); return; }
+        // the forced intro is satisfied the moment the player actually goes in
+        if (spot.dataset.gate === 'base') {
+          spot.dataset.gate = '';
+          spot.classList.remove('active');
+          dropTarget();
+          baseBtn.classList.remove('calling');
         }
-        baseOverlay.classList.toggle('active');
+        if (!base) base = freshBase();
+        bsRoot.classList.add('active');
+        BaseScene.open();
+      }
+
+      function closeBase() {
+        BaseScene.close();
+        bsRoot.classList.remove('active');
+        renderBasePeek();
+        updateBaseDot();
+        markTablet('base');   // they have now actually been inside
+        if (baseAfterIntro) {
+          const fn = baseAfterIntro; baseAfterIntro = null;
+          revealUI('apps', { silent: true });
+          setTimeout(() => {
+            const p = UI_PIECES.apps;
+            spotlight(p.el(), p.title, p.body, null, fn);
+          }, 260);
+        }
+      }
+
+      /* Talents used to be housed by hand in the removed panel. The research
+         facility's level is the only thing that ever gated it, so housing is
+         automatic now — build it taller and the people who are waiting move in. */
+      function autoHouseTalents() {
+        if (!base) return;
+        let slots = labSlots();
+        base.talents.forEach(t => { t.housed = false; });
+        base.talents.forEach(t => { if (slots > 0) { t.housed = true; slots--; } });
       }
 
       /* ================= BATTLE HOOKS INTO THE STORY ================= */
@@ -7603,13 +7384,10 @@
         prep.style.cssText = 'margin-top:8px;background:var(--cyan);color:#04262a;';
         prep.textContent = '🏭 先回基地準備';
         prep.onclick = () => {
-          prep.remove(); modal.classList.remove('active'); toggleBase();
-          const reopen = () => {
-            if (!baseOverlay.classList.contains('active')) {
-              baseCloseBtn.removeEventListener('click', reopen); setTimeout(() => showThreatBriefing(onReady), 200);
-            }
-          };
-          baseCloseBtn.addEventListener('click', reopen);
+          // the base has no close button of its own any more — it is a place you
+          // walk out of, so poll for the player leaving and pick the briefing up
+          prep.remove(); modal.classList.remove('active'); openBase();
+          waitForBaseClose(() => setTimeout(() => showThreatBriefing(onReady), 200));
         };
         modalBtn.parentElement.appendChild(prep);
         modalBtn.addEventListener('click', () => prep.remove(), { once: true });
@@ -7717,7 +7495,6 @@
           if (left === 2) pushTicker(`【警告】${th.name} 拒絕了第七次會面。他每回合都能重整立場——去基地把牌組練起來。`);
           if (left === 1) pushTicker(`【最後通牒】明天就是和 ${th.name} 的談判。現在還來得及回基地升級。`);
         }
-        growPlots();
         maybeTriggerSideEvent(showDayMenu);
       }
 
@@ -7776,13 +7553,11 @@
            Offered once: the player can still close the base without finishing, and
            must not be trapped in a reopen loop. The Rival gate and the pre-fight
            briefing remain as the later safety nets. */
-        if (base && !base.labCoachOffered && needsLabCoach()) {
-          base.labCoachOffered = true;
-          openBase();
-          waitForBaseClose(showDayMenu);
-          return;
-        }
-        if (ap <= 0 && labStep > LAB_OBJECTS.length - 1) { endDay(); return; }
+        /* The lab is a full-screen layer. Ending the day without closing it left
+           the briefing, the final fight and the judgment stage playing UNDERNEATH
+           it: the player saw the lab, slept again, and got sent back into the
+           same final battle on the next day. */
+        if (ap <= 0 && labStep > LAB_OBJECTS.length - 1) { closeLab(); endDay(); return; }
         setInputEnabled(false);
         openLab();
       }
@@ -8034,7 +7809,7 @@
 
       function waitForBaseClose(next) {
         const tick = setInterval(() => {
-          if (!baseOverlay.classList.contains('active')) { clearInterval(tick); next(); }
+          if (!BaseScene.isOpen()) { clearInterval(tick); next(); }
         }, 200);
       }
 
@@ -8111,8 +7886,78 @@
           setTimeout(() => startRivalBattle(afterEncounter), 1200);
           return;
         }
-        stageHint.textContent = currentNPC.name + ' 向你搭話了！你要看向哪裡？';
-        setInputEnabled(true);
+        stageHint.textContent = currentNPC.name + ' 向你搭話了……';
+        setTimeout(openTiltMaze, 1100);
+      }
+
+      /* The encounter's four directions are a tilt maze now. The master does not
+         answer the question — he thinks about it, and the thought has to find
+         its own way home. Landing it runs exactly the over-interpretation
+         theatre the D-pad used to trigger; running out of window means the NPC
+         never understood, says something polite, and nothing happens.
+         The final judgment day still uses the D-pad: it is a choice, not a
+         puzzle, and it decides the ending. */
+      let mazeIndex = 0;
+      function openTiltMaze() {
+        const fac = currentNPC.faction;
+        TiltMaze.story(mazeIndex, {
+          faction: fac, name: currentNPC.name, question: currentNPC.question,
+          label: META[fac].label, color: `var(${META[fac].varc})`
+        }, res => {
+          mazeIndex++;
+          if (res.won) runEncounterSequence('right');
+          else runFlatterySequence();
+        });
+      }
+
+      /* Losing is not punished — it is simply not understood. */
+      const FLATTERY = {
+        professor: ['教授鼓了鼓掌。', '「嗯……很有意思。」', '（其實完全沒看懂，但不能承認）'],
+        religion: ['信徒虔誠地點頭。', '「大師的沉默，也是一種啟示。」', '（回去照樣唱原本的聖歌）'],
+        merchant: ['商人熱情地握手。', '「厲害厲害，果然是大師！」', '（默默把手機收起來，繼續看原本的線圖）'],
+        ai: ['AI 的燈光平穩地閃了兩下。', '「輸入已接收。信心分數：0.11。」', '「正在歸檔至：待理解資料夾。」'],
+        netizen: ['網友拍了一張，猶豫了一下。', '「雖然不太懂，但感覺很強欸。」', '（貼文按讚數：4）'],
+        military: ['觀測員敬了個禮。', '「了解！……了解什麼還不清楚，但了解！」'],
+        awakened: ['覺醒者閉上眼睛。', '「訊息太高頻了，我還接不住。」', '（決定再打坐三年）'],
+        rival: ['他冷笑了一聲。', '「就這樣？」', '（但他還是把那一幕記了下來）']
+      };
+      const FLATTER_TICKER = {
+        professor: '學界低調表示：大師本次的展示「仍待進一步解讀」',
+        religion: '教會公告：大師的沉默屬於「更高層次的訊息」，暫不解釋',
+        merchant: '市場無明顯波動，分析師稱「大師今日並未發出訊號」',
+        ai: '某 AI 將本次觀測標記為「資料不足」，工程師表示正常',
+        netizen: '#大師今天有點安靜　登上熱搜第 47 名',
+        military: '軍方表示本次觀測「不構成戰備調整依據」',
+        awakened: '覺醒論壇：頻率沒對上，不是大師的問題'
+      };
+
+      function runFlatterySequence() {
+        const fac = currentNPC.faction;
+        const isRival = fac === 'rival';
+        openTheaterShell();
+        setPortrait(mainSprite, 'player', 'neutral', portraitCell());
+        mainSprite.classList.remove('hidden-el');
+        iconSprite.classList.add('hidden-el');
+        theaterName.textContent = '大師';
+        theaterCaption.textContent = '你想了很久。然後就走了。';
+
+        setTimeout(() => {
+          setPortrait(mainSprite, fac, isRival ? 'rattled' : 'awe', portraitCell());
+          theaterName.textContent = (isRival ? '未知派系' : META[fac].label) + ' · ' + currentNPC.name;
+          theaterCaption.textContent = '（他決定先鼓掌再說。）';
+        }, 1500);
+
+        setTimeout(() => {
+          theaterCaption.textContent = '';
+          theaterQuote.innerHTML = recordHtml(
+            isRival ? '未知派系' : META[fac].label, currentNPC.name, 'right',
+            FLATTERY[fac] || FLATTERY.professor, 0, false);
+          theaterQuote.classList.remove('hidden-el');
+          theaterGain.classList.add('hidden-el');
+          continueBtn.classList.remove('hidden-el');
+          pushTicker(FLATTER_TICKER[fac] || FLATTER_TICKER.professor);
+          updateHUD();
+        }, 2600);
       }
 
       function afterEncounter() {
@@ -8222,7 +8067,7 @@
       const RAW_OBSERVATION = {
         up: '對象抬頭注視天空，持續約 1.2 秒。未發一語。',
         left: '對象將視線向左偏移，停留約 0.8 秒。未發一語。',
-        right: '對象將視線向右偏移，停留約 0.9 秒。未發一語。',
+        right: '對象在原地站立數秒，期間重心左右微幅移動，最後視線向右偏移。未發一語。',
         down: '對象低頭注視地面，持續約 1.4 秒。未發一語。'
       };
       let recordSeq = 0;
@@ -8317,6 +8162,7 @@
       }
 
       function endDay() {
+        if (judgmentMode) return;   // the last day already handed over to the ending
         const resLine = '\n\n' + collectDailyResources();
         const lim = currentLimit();
         const limLine = lim ? `\n${lim.icon} ${lim.name}持續中。` : '';
@@ -8348,6 +8194,15 @@
 
       function startJudgment() {
         judgmentMode = true;
+        /* Nothing may cover the final choice. Whatever screen the player came
+           through — lab, day menu, base, maze, a leftover modal — is closed here
+           rather than trusted to have closed itself. */
+        closeLab();
+        hideDayMenu();
+        if (window.BaseScene && BaseScene.isOpen()) closeBase();
+        if (window.TiltMaze && TiltMaze.isOpen()) TiltMaze.close();
+        modal.classList.remove('active');
+        actionBusy = true;      // the day loop is over; nobody hands the menu back
         updateHUD();
         npcTok.style.opacity = 0; bubble.style.opacity = 0; playerTok.style.left = '5%';
         setTimeout(() => {
@@ -8400,7 +8255,7 @@
             lines = ['教授派的信徒們，', '早已把你每一次「向下看」，', '拼湊成一整套地底冷卻方案——', '荒謬，卻異常完整……'];
             pushTicker('教授團隊宣布啟動「被超譯的地底冷卻機制」');
           } else {
-            lines = INTERP.netizen[dir] || ['全世界都在解讀你最後的這一眼……'];
+            lines = JUDGMENT_LINES[dir] || ['全世界都在解讀你最後的這一眼……'];
             pushTicker('全球都在解讀大師最後的姿態');
           }
           theaterCaption.textContent = '';
@@ -8411,6 +8266,16 @@
           pendingAction = () => showEnding(hidden ? 'true' : (success ? 'normal' : 'bad'));
         }, 3800);
       }
+
+      /* The final gesture is answered by the whole species, not by one bystander.
+         Reusing the netizen street lines here put「網友挖出十年前的舊發言」at the
+         end of the world, which reads as a mis-fire rather than a joke. */
+      const JUDGMENT_LINES = {
+        up: ['全球同步轉播了那一抬頭。', '各國連夜宣布：答案在天上。', '衛星、火箭、觀測站——', '所有能指向天空的東西都被啟動了。'],
+        down: ['全球同步轉播了那一低頭。', '「他在看地底。」', '鑽探隊、地質學家、工程車——', '整顆星球開始往下挖。'],
+        left: ['全球同步轉播了那一回望。', '「他在看我們來的地方。」', '所有的舊檔案被重新打開，', '人類第一次認真讀了自己的紀錄。'],
+        right: ['全球同步轉播了那一眼。', '「他已經看見之後的事了。」', '沒有人知道他看見了什麼，', '但所有人都朝那個方向動了起來。']
+      };
 
       const ENDING_TEXTS = {
         1: {
@@ -8533,6 +8398,71 @@
         modalBtn.onclick = () => { modal.classList.remove('active'); worldSceneWrap.classList.add('hidden-el'); startGame(); };
       }
 
+      /* =====================================================================
+         TITLE MENU · THEME MUSIC
+         ---------------------------------------------------------------------
+         The key art is the screen; the menu is four lit outlines sitting on the
+         console the art already draws. Nothing starts until 新的開始 — the boot
+         sequence still plays after it, because watching the terminal come up is
+         how the game says what kind of place this is.
+         ===================================================================== */
+      const THEME = 'assets/im-not-genius.m4a';
+      const THEME_GAP = 5000;    // 每首循環之間留白五秒
+      let themeTimer = null, themeArmed = false;
+
+      function startTheme() {
+        if (!settings.music) return;
+        if (!bgm.getAttribute('src')) bgm.src = THEME;
+        bgm.volume = clampVol(settings.vol) / 100;
+        bgm.play().catch(() => {
+          /* Browsers (and Electron) refuse audio before the first gesture. Arm
+             it once and let the player's first click do the unlocking. */
+          if (themeArmed) return;
+          themeArmed = true;
+          const unlock = () => {
+            removeEventListener('pointerdown', unlock);
+            removeEventListener('keydown', unlock);
+            themeArmed = false;
+            startTheme();
+          };
+          addEventListener('pointerdown', unlock);
+          addEventListener('keydown', unlock);
+        });
+      }
+      function stopTheme() {
+        clearTimeout(themeTimer);
+        bgm.pause();
+      }
+      bgm.addEventListener('ended', () => {
+        clearTimeout(themeTimer);
+        themeTimer = setTimeout(() => {
+          if (!settings.music) return;
+          bgm.currentTime = 0;
+          bgm.play().catch(() => { });
+        }, THEME_GAP);
+      });
+
+      function showTitleMenu() {
+        titleMenu.classList.add('active');
+        startTheme();
+      }
+      function hideTitleMenu() {
+        titleMenu.classList.remove('active');
+      }
+
+      menuNew.addEventListener('click', () => {
+        hideTitleMenu();
+        stopTheme();               // the boot terminal has its own silence
+        runBoot(startGame);
+      });
+      menuSet.addEventListener('click', toggleSettings);
+      menuQuit.addEventListener('click', () => {
+        stopTheme();
+        // packaged as Electron, so this really does close the game; in a plain
+        // browser tab window.close() is refused and we just stay on the menu
+        window.close();
+      });
+
       /* ================= BOOT ================= */
       buildSkyline();
       renderFactionPanel();
@@ -8545,9 +8475,7 @@
       achBtn.addEventListener('click', toggleAch);
       achCloseBtn.addEventListener('click', toggleAch);
       baseBtn.addEventListener('click', toggleBase);
-      baseCloseBtn.addEventListener('click', toggleBase);
       basePeekBtn.addEventListener('click', toggleBase);
-      baseScene.addEventListener('click', sceneClick);
       setBtn.addEventListener('click', toggleSettings);
       setCloseBtn.addEventListener('click', toggleSettings);
       // the base spotlight is a gate: only opening the base clears it
@@ -8572,7 +8500,7 @@
           get base() { return base; },
           get chapter() { return chapter; }, set chapter(v) { chapter = v; },
           get locked() { return battle && damageLocked(); },
-          COACH_PROGRAMS, BUILDING_DEFS, needsLabCoach, goRival, toggleTalent, upgradeBuilding,
+          BUILDING_DEFS, goRival,
           get probeCount() { return probeCharges(); },
           get rivalUsed() { return rivalUsed; },
           clearBattle() { battle = null; },
@@ -8581,7 +8509,7 @@
           get actionBusy() { return actionBusy; },
           get day() { return day; }, set day(v) { day = v; },
           get labActive() { return lab.classList.contains('active'); },
-          get baseActive() { return baseOverlay.classList.contains('active'); },
+          get baseActive() { return BaseScene.isOpen(); },
           // tablet delivery is chapter/day gated, so it is slow to reach by playing
           deliverTablet, toggleTablet, openTabletMessage, renderTablet,
           get tabletInbox() { return tabletInbox.slice(); },
@@ -8596,11 +8524,29 @@
         };
       }
 
+      /* The scene is the base panel now, so it needs exactly three things from
+         the game: where the resources live, somewhere to report what has been
+         built, and the two doors out (the lab vehicle, and leaving). */
+      BaseScene.attach({
+        res: () => (base || (base = freshBase())).res,
+        setLevels: lv => {
+          if (!base) return;
+          let changed = false;
+          Object.keys(lv).forEach(k => {
+            if (base.lv[k] !== lv[k]) { base.lv[k] = lv[k]; changed = true; }
+          });
+          if (changed) { autoHouseTalents(); renderBasePeek(); }
+        },
+        enterLab: () => { closeBase(); openLab(); },
+        exit: () => { closeBase(); }
+      });
+
       (async function boot() {
         await loadSettings();
         await loadAchievements();
         veilUI();
-        runBoot(startGame);
+        applyDevMode();
+        showTitleMenu();
       })();
 
     })();

@@ -10,7 +10,10 @@ function createWindow () {
     backgroundColor: '#0d0618', // 配合你遊戲的虛空深色背景
     webPreferences: {
       nodeIntegration: false, // 網頁遊戲不需直接調用 Node 權限，關閉較安全
-      contextIsolation: true
+      contextIsolation: true,
+      // 這是單機遊戲，不是網頁：主題曲要在開始選單一出現就播，
+      // 不該逼玩家先點一下畫面才有聲音
+      autoplayPolicy: 'no-user-gesture-required'
     }
   })
 
