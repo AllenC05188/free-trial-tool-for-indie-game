@@ -1,19 +1,5 @@
-# 相依套件
 node_modules/
-
-# electron-packager 的輸出
-天才模擬器-*/
-out/
-dist/
-
-# 產生物：由 assets/buildings-sheet.png 產生，用 `npm run sheet` 重建。
-# 不提交的原因：它是同一張圖的 base64，每換一次美術就會多一個 1.3MB 的 blob。
-.scratch/interactive-base/sheet-data.js
-
-# 本機專屬設定
-.claude/settings.local.json
-
-# 作業系統雜物
-Thumbs.db
-desktop.ini
-.DS_Store
+.claude/
+CLAUDE.md
+CONTEXT.md
+skills-lock.json
