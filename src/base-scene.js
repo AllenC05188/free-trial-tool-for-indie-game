@@ -30,7 +30,17 @@ let HOST = {
    ══════════════════════════════════════════════════════════════════ */
 /* 版本戳記：file:// 的快取很黏，看不到這串更新就是拿到舊檔，按 Ctrl+F5 強制重載 */
 const BUILD = 'N3-back-0804d';
-const VW = 480, VH = 270;          // 虛擬解析度（1920×1080 = 整數 4 倍）
+/* 像素尺度：一個美術像素在 1920×1080 全螢幕下等於螢幕上的 4×4。
+   VW/VH 不是固定的——見 layout()：整數倍縮放保住像素方正，視野則跟著視窗
+   長大去填滿它，而不是補黑邊。 */
+const BASE_VW = 480, BASE_VH = 270;
+const MAX_VW = 1280, MAX_VH = 720;   // 視野上限，免得超寬螢幕把繪製量撐爆
+let VW = BASE_VW, VH = BASE_VH;
+
+/* 外殼（終端讀數、型錄面板）的設計解析度。面板寬度是寫死的數字，所以
+   UI 單位空間永遠不能小於這個尺寸，否則面板會超出畫面左右——這正是型錄
+   只有在 1920×1080 全螢幕下才顯示完整的原因。 */
+const UI_DESIGN_W = 860, UI_DESIGN_H = 380;
 const TS = 16;                     // 圖塊邊長
 const MOD = 20;                    // 一塊地基模組 = 20×20 圖塊
 /* 建築佔地不再統一：寬度由美術自己決定（ceil(圖寬/圖塊)），深度固定 3 格。
@@ -55,10 +65,13 @@ let UU = 1, OW = VW * 3, OH = VH * 3;
 
 function layout() {
   dpr = Math.min(2, devicePixelRatio || 1);
-  /* 視窗大於 480×270 就用整數倍（像素才對齊）；小於就退成分數倍，
-     總之絕不讓畫面大於視窗——否則使用者只會看到左上角一小塊。 */
-  const raw = Math.min(innerWidth / VW, innerHeight / VH);
+  /* 整數倍縮放保住像素方正；剩下的空間不是補黑邊，而是「看到更多基地」——
+     視野跟著視窗長大。原本固定 480×270 的做法，只要視窗高度被標題列吃掉
+     一點點，4 倍就掉成 3 倍，1920 寬的視窗只用 1440，左右各留 240px 黑邊。 */
+  const raw = Math.min(innerWidth / BASE_VW, innerHeight / BASE_VH);
   scale = raw >= 1 ? Math.floor(raw) : Math.max(0.2, raw);
+  VW = Math.min(MAX_VW, Math.ceil(innerWidth / scale));
+  VH = Math.min(MAX_VH, Math.ceil(innerHeight / scale));
   dispW = VW * scale; dispH = VH * scale;
   wrap.style.width = dispW + 'px'; wrap.style.height = dispH + 'px';
   wrap.style.left = ((innerWidth - dispW) / 2 | 0) + 'px';
@@ -67,14 +80,29 @@ function layout() {
   world.style.width = dispW + 'px'; world.style.height = dispH + 'px';
   overlay.width = dispW * dpr; overlay.height = dispH * dpr;
   overlay.style.width = dispW + 'px'; overlay.style.height = dispH + 'px';
-  /* 外殼字級跟著解析度長大。1920×1080 全螢幕 = 4 倍縮放 → UU 1.54，
-     終端讀數才不會小得像註腳。 */
-  UU = clamp(scale / 1.3, 0.8, 1.9);
+  /* 外殼字級跟著解析度長大，終端讀數才不會小得像註腳——但**永遠**先保證
+     設計解析度放得下。兩者衝突時字級讓步：字小一點還讀得到，面板被切掉
+     就是資訊消失。 */
+  UU = Math.min(clamp(scale / 1.3, 0.8, 1.9), dispW / UI_DESIGN_W, dispH / UI_DESIGN_H);
   OW = dispW / UU; OH = dispH / UU;
   W.imageSmoothingEnabled = false;
+  syncBuffers();
 }
-/* 480×270 是 16:9，全螢幕 1920×1080 剛好整數 4 倍、零黑邊。
-   非全螢幕時瀏覽器工具列會吃掉高度，只能退到 3 倍並留邊——所以全螢幕是預設路徑。 */
+
+/* 光照與輝光是整片視野大小的緩衝區，視野會變，它們就得跟著變。
+   宣告在後面（TDZ），所以用旗標擋住第一次 layout()。 */
+let buffersReady = false;
+function syncBuffers() {
+  if (!buffersReady) return;
+  if (light.width !== VW || light.height !== VH) {
+    light.width = VW; light.height = VH; LG.imageSmoothingEnabled = false;
+  }
+  if (glowBuf.width !== VW || glowBuf.height !== VH) {
+    glowBuf.width = VW; glowBuf.height = VH; GG.imageSmoothingEnabled = false;
+  }
+}
+/* 全螢幕不再是必要條件：視野會自己長大去填滿視窗（見 layout()），
+   所以視窗模式下也是滿版、沒有黑邊。這裡留著只是因為有人就是想要全螢幕。 */
 function toggleFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen && document.exitFullscreen();
   else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => { });
@@ -1692,6 +1720,7 @@ const light = bake(VW, VH, () => { });
 const LG = light.getContext('2d');
 const glowBuf = bake(VW, VH, () => { });  // 加色光層，合成前會把角色剪影挖掉
 const GG = glowBuf.getContext('2d');
+buffersReady = true;   // 從這裡開始，layout() 可以安全地重設兩張緩衝區
 
 /* 每幀的光照強度。邊緣光白天偏暖、夜裡轉冷月光；自發光只在天暗後出現。 */
 let rimWarmA = 0, rimCoolA = 0, emisA = 0;

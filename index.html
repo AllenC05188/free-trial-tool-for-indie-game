@@ -1094,7 +1094,9 @@
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 56;
+      /* above the tablet (56): both are opened FROM the tablet, which
+         stays on screen underneath as the device you are holding */
+      z-index: 57;
       padding: 16px;
     }
 
@@ -1221,6 +1223,60 @@
 
     #tabletOverlay.active {
       display: flex;
+    }
+
+    /* The tablet's own app row. Deliberately looks like a device's dock rather
+       than the terminal's header buttons: this is hardware in the player's
+       hands, not chrome around the game. */
+    .app-strip {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      background: var(--bg-panel-2);
+    }
+
+    .app-strip button {
+      flex: 1;
+      position: relative;
+      font-family: var(--mono);
+      font-size: calc(12px * var(--fs));
+      letter-spacing: 0;
+      padding: 9px 2px;
+      background: transparent;
+      border: 0;
+      border-right: 1px solid var(--border);
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: color .15s, background .15s;
+    }
+
+    .app-strip button:last-child {
+      border-right: 0;
+    }
+
+    .app-strip button:hover {
+      color: var(--text);
+      background: rgba(126, 240, 168, 0.06);
+    }
+
+    .app-strip button.on {
+      color: var(--term-fg);
+      background: rgba(126, 240, 168, 0.1);
+      box-shadow: inset 0 -2px 0 var(--term-fg);
+    }
+
+    .app-strip .dot {
+      position: absolute;
+      top: 5px;
+      right: 8px;
+      width: 8px;
+      height: 8px;
+      background: var(--netizen);
+      border-radius: 50%;
+      display: none;
+    }
+
+    .app-strip .dot.show {
+      display: block;
     }
 
     .msg-card {
@@ -1379,7 +1435,9 @@
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 56;
+      /* above the tablet (56): both are opened FROM the tablet, which
+         stays on screen underneath as the device you are holding */
+      z-index: 57;
       padding: 16px;
     }
 
@@ -3308,18 +3366,22 @@
        off the plate it is supposed to be sitting on — and our buttons are
        transparent hit areas pinned to coordinates measured from the file.
        ===================================================================== */
+    /* Visible from the very first paint, and removed only when a game starts.
+       The other way round — hidden by default, switched on inside boot() — let
+       the HUD behind it render during the two awaits, so the game opened with a
+       flash of 基地摘要／信任度／新聞線 before the title art appeared. */
     #titleMenu {
       position: fixed;
       inset: 0;
       z-index: 300;
-      display: none;
+      display: flex;
       align-items: center;
       justify-content: center;
       background: #05030c;
     }
 
-    #titleMenu.active {
-      display: flex;
+    #titleMenu.gone {
+      display: none;
     }
 
     .tm-art {
@@ -3885,7 +3947,7 @@
   </style>
 </head>
 
-<body>
+<body oncontextmenu="return false;">
   <div id="app">
 
     <header>
@@ -3894,11 +3956,13 @@
         <div class="subtitle">大師觀測終端 · 全球超譯協會</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
+        <!-- 成就 / 大師動態 / 校準 are NOT here. They are things the master
+             carries, and they live on the tablet — a second copy in the header
+             would be the same three functions asking to be found in two places,
+             and would put an interface in a screen the fiction says is a street
+             corner. The tablet's dot covers all of them. -->
         <button class="app-btn" id="tabletBtn">📱 平板<span class="dot" id="tabletDot"></span></button>
-        <button class="app-btn" id="achBtn">🏆 成就<span class="dot" id="achDot"></span></button>
-        <button class="app-btn" id="feedBtn">🌐 大師動態<span class="dot" id="feedDot"></span></button>
         <button class="app-btn" id="baseBtn">🏭 基地<span class="dot" id="baseDot"></span></button>
-        <button class="app-btn" id="setBtn">⚙️</button>
         <div class="influence-box">
           <div class="label">影響力指數（協會認證）</div>
           <div class="num" id="influenceNum">0</div>
@@ -4020,7 +4084,16 @@
         <h3 class="term-title">平板 · 收件匣</h3>
         <button id="tabletCloseBtn">[[ 關閉 ]]</button>
       </div>
-      <div class="src">來源：各單位加密推送 · 協會不為個別單位之內容背書</div>
+      <!-- The tablet is the device the player already picks up in the vehicle, so
+           it is where everything portable lives: mail, the record of what the
+           world has decided about them, the live feed, and the terminal's own
+           calibration. No corner of the room had to be given over to a menu. -->
+      <div class="app-strip" id="tabletStrip">
+        <button class="on" data-app="inbox">📨 收件匣<span class="dot" id="stripInboxDot"></span></button>
+        <button data-app="ach">🏆 成就<span class="dot" id="stripAchDot"></span></button>
+        <button data-app="feed">🌐 動態<span class="dot" id="stripFeedDot"></span></button>
+        <button data-app="set">⚙️ 設定</button>
+      </div>
       <div class="phone-body" id="tabletBody"></div>
     </div>
   </div>
@@ -4028,10 +4101,10 @@
   <div id="achOverlay">
     <div class="phone">
       <div class="phone-head">
-        <h3 class="term-title">已認定事蹟　<span id="achCount">0</span> / <span id="achTotal">0</span></h3>
+        <h3 class="term-title">成就<span id="achCount">0</span> / <span id="achTotal">0</span></h3>
         <button id="achCloseBtn">[[ 關閉 ]]</button>
       </div>
-      <div class="src">本欄事蹟由各國教育部、宗教團體與演算法共同認定</div>
+      <div class="src">本欄事蹟由各國教育部、宗教團體與元首共同認定</div>
       <div class="phone-body" id="achBody"></div>
     </div>
   </div>
@@ -4165,8 +4238,8 @@
 
   <div id="setOverlay">
     <div class="set-panel term">
-      <h3 class="term-title">終端校準</h3>
-      <div class="set-sub">本終端之顯示參數由使用者自行調整，變更即時生效並寫入紀錄。協會不對閱讀舒適度負責。</div>
+      <h3 class="term-title">終端設定</h3>
+      <div class="set-sub">該設定欄位意義不明，既不影響平板音量，也有許多協會無法解釋的選項，唯一能確認的是，調整之後大師的心情好了很多。</div>
       <div class="set-label">顯示字級</div>
       <div class="fs-row" id="fsRow"></div>
       <div class="fs-preview" id="fsPreview">
@@ -4176,6 +4249,7 @@
 
       <div class="set-label" style="margin-top:18px">音訊</div>
       <label class="set-check"><input type="checkbox" id="setMusic" checked>播放主題曲</label>
+      <label class="set-check"><input type="checkbox" id="setSfx" checked>音效（介面、採集、傾斜實驗艙）</label>
       <div class="set-slider">
         <span>音量</span>
         <input type="range" id="setVol" min="0" max="100" step="1" value="70">
@@ -4188,7 +4262,6 @@
 
       <div class="set-label" style="margin-top:18px">開發者</div>
       <label class="set-check"><input type="checkbox" id="setDev">開發者模式</label>
-      <div class="set-note">開啟後畫面右上角會出現測試入口：可直接跳進基地、劇情 tilt maze、無限 tilt maze，不必照流程走一遍。</div>
       <button class="primary cmd" id="setCloseBtn">[[ 套用並返回 ]]</button>
     </div>
   </div>
@@ -4322,6 +4395,7 @@
        through the hooks it is handed. sheet-data.js is the building art, baked
        to a data URI because a file:// <img> would taint the canvas we read
        pixels back from. -->
+  <script src="src/sfx.js"></script>
   <script src="src/sheet-data.js"></script>
   <script src="src/base-scene.js"></script>
   <script src="src/tilt-maze.js"></script>
@@ -5674,10 +5748,13 @@
       const mainSprite = $('mainSprite');
       const iconSprite = $('iconSprite');
       const dUp = $('dUp'), dDown = $('dDown'), dLeft = $('dLeft'), dRight = $('dRight');
-      const feedBtn = $('feedBtn'), feedDot = $('feedDot'), feedOverlay = $('feedOverlay'), feedBody = $('feedBody'), feedCloseBtn = $('feedCloseBtn');
+      /* The unread markers for 成就 and 大師動態 ARE the tablet's own tab dots —
+         not a copy of some header light. There is one badge per app and it is
+         on the app. */
+      const feedDot = $('stripFeedDot'), feedOverlay = $('feedOverlay'), feedBody = $('feedBody'), feedCloseBtn = $('feedCloseBtn');
       const tabletBtn = $('tabletBtn'), tabletDot = $('tabletDot'), tabletOverlay = $('tabletOverlay'),
         tabletBody = $('tabletBody'), tabletCloseBtn = $('tabletCloseBtn');
-      const achBtn = $('achBtn'), achDot = $('achDot'), achOverlay = $('achOverlay'), achBody = $('achBody'), achCloseBtn = $('achCloseBtn'), achCount = $('achCount'), achTotal = $('achTotal');
+      const achDot = $('stripAchDot'), achOverlay = $('achOverlay'), achBody = $('achBody'), achCloseBtn = $('achCloseBtn'), achCount = $('achCount'), achTotal = $('achTotal');
       const sideOverlay = $('sideOverlay'), sidePanel = $('sidePanel');
       const achToast = $('achToast');
       const battleOverlay = $('battleOverlay'), foeName = $('foeName'), foeRole = $('foeRole'), foeSprite = $('foeSprite');
@@ -5691,11 +5768,11 @@
       const baseBtn = $('baseBtn'), baseDot = $('baseDot');
       const bsRoot = $('bsRoot'), titleMenu = $('titleMenu'), devBar = $('devBar'), bgm = $('bgm');
       const menuNew = $('menuNew'), menuSet = $('menuSet'), menuQuit = $('menuQuit');
-      const setDev = $('setDev'), setMusic = $('setMusic'), setVol = $('setVol');
+      const setDev = $('setDev'), setMusic = $('setMusic'), setVol = $('setVol'), setSfx = $('setSfx');
       const setVolNum = $('setVolNum'), setFull = $('setFull'), setCrt = $('setCrt');
       const devBase = $('devBase'), devStory = $('devStory'), devEndless = $('devEndless');
       const newsList = $('newsList'), basePeekBody = $('basePeekBody'), basePeekBtn = $('basePeekBtn');
-      const setBtn = $('setBtn'), setOverlay = $('setOverlay'), setCloseBtn = $('setCloseBtn'), fsRow = $('fsRow');
+      const setOverlay = $('setOverlay'), setCloseBtn = $('setCloseBtn'), fsRow = $('fsRow');
       const spot = $('spot'), spotVeil = $('spotVeil'), spotRing = $('spotRing'),
         spotCallout = $('spotCallout'), spotArrow = $('spotArrow');
       const boot = $('boot'), bootLog = $('bootLog'), bootBtn = $('bootBtn');
@@ -5919,6 +5996,7 @@
             showAchToast('🏆 成就解鎖：' + def.name);
             pushTicker('【成就達成】' + def.name + '——' + def.desc);
             achDot.classList.add('show');
+            syncTabletStrip();
           }
         });
         if (changed) persistAchievements();
@@ -5953,6 +6031,7 @@
         feedPosts.unshift({ faction, name, text, likes, reposts, day });
         if (feedPosts.length > 30) feedPosts.pop();
         feedDot.classList.add('show');
+        syncTabletStrip();
         maxFeedLikes = Math.max(maxFeedLikes, likes);
         evaluateAchievements();
       }
@@ -5982,8 +6061,9 @@
 
       function toggleFeed() {
         const opening = !feedOverlay.classList.contains('active');
-        if (opening) { renderFeed(); feedDot.classList.remove('show'); }
+        if (opening) { renderFeed(); feedDot.classList.remove('show'); syncTabletStrip(); }
         feedOverlay.classList.toggle('active');
+        SFX.play(opening ? 'open' : 'close');
       }
 
       /* ================= TABLET INBOX =================
@@ -6051,7 +6131,7 @@
       }
 
       function tabletUnread() { return tabletInbox.filter(id => !tabletRead[id]).length; }
-      function updateTabletDot() { tabletDot.classList.toggle('show', tabletUnread() > 0); }
+      function updateTabletDot() { syncTabletStrip(); }
 
       /* Colour and avatar come from META, the same table the trust bars use, so a
          sender always looks the same everywhere. The Association has no faction:
@@ -6141,10 +6221,40 @@
         tabletBody.appendChild(wrap);
       }
 
+      /* ---- the tablet's app strip ----
+         成就 / 大師動態 / 終端校準 are not header chrome. They are things the
+         master carries, so they live on the device that is already in the
+         vehicle — reachable from the first morning, without putting a single
+         button on the wall or on the street. This strip is their only home. */
+      const tabletStrip = $('tabletStrip'), stripInboxDot = $('stripInboxDot');
+
+      /* The header's 📱 dot is a ROLL-UP: it lights if anything inside the device
+         is unread, because from outside the tablet you cannot see which app it
+         is. The per-app dots on the strip say which. */
+      function syncTabletStrip() {
+        stripInboxDot.classList.toggle('show', tabletUnread() > 0);
+        tabletDot.classList.toggle('show',
+          tabletUnread() > 0 || achDot.classList.contains('show') || feedDot.classList.contains('show'));
+      }
+
+      tabletStrip.addEventListener('click', e => {
+        const btn = e.target.closest('button'); if (!btn) return;
+        SFX.play('click');
+        const app = btn.dataset.app;
+        if (app === 'inbox') { tabletOpenId = null; renderTablet(); syncTabletStrip(); return; }
+        // The other three open ON TOP of the tablet — you are still holding it,
+        // so closing them lands you back in the device, not in the room.
+        if (app === 'ach') toggleAch();
+        else if (app === 'feed') toggleFeed();
+        else if (app === 'set') toggleSettings();
+        setTimeout(syncTabletStrip, 0);
+      });
+
       function toggleTablet() {
         const opening = !tabletOverlay.classList.contains('active');
-        if (opening) { deliverTablet(); tabletOpenId = null; renderTablet(); }
+        if (opening) { deliverTablet(); tabletOpenId = null; renderTablet(); syncTabletStrip(); }
         tabletOverlay.classList.toggle('active');
+        SFX.play(opening ? 'open' : 'close');
         if (!opening) {
           // the lab's tablet carries the unread count; keep it honest on close
           if (lab.classList.contains('active')) renderLab();
@@ -6180,8 +6290,9 @@
 
       function toggleAch() {
         const opening = !achOverlay.classList.contains('active');
-        if (opening) { renderAchievements(); achDot.classList.remove('show'); }
+        if (opening) { renderAchievements(); achDot.classList.remove('show'); syncTabletStrip(); }
         achOverlay.classList.toggle('active');
+        SFX.play(opening ? 'open' : 'close');
       }
 
       /* ---------- SIDE EVENTS ---------- */
@@ -6299,18 +6410,23 @@
       ];
       // defaults to 大 because the stock size was reported as a strain; the
       // setting persists once the player picks their own
-      let settings = { fs: 'm', dev: false, music: true, vol: 70, full: false, crt: true };
+      let settings = { fs: 'm', dev: false, music: true, sfx: true, vol: 70, full: false, crt: true };
 
       function applySettings() {
         const step = FS_STEPS.find(s => s.k === settings.fs) || FS_STEPS[2];
         document.documentElement.style.setProperty('--fs', step.v);
         document.body.classList.toggle('no-crt', settings.crt === false);
         if (bgm) bgm.volume = clampVol(settings.vol) / 100;
+        /* One volume for the whole terminal: the slider the player already knows
+           moves the effects with the theme, so there is no second mixer to find. */
+        SFX.setVolume(clampVol(settings.vol));
+        SFX.setEnabled(settings.sfx !== false);
       }
       function clampVol(v) { v = Number(v); return isNaN(v) ? 70 : Math.max(0, Math.min(100, v)); }
       function renderSettings() {
         setDev.checked = !!settings.dev;
         setMusic.checked = settings.music !== false;
+        setSfx.checked = settings.sfx !== false;
         setCrt.checked = settings.crt !== false;
         setVol.value = clampVol(settings.vol);
         setVolNum.textContent = clampVol(settings.vol);
@@ -6346,6 +6462,7 @@
         const opening = !setOverlay.classList.contains('active');
         if (opening) renderSettings();
         setOverlay.classList.toggle('active');
+        SFX.play(opening ? 'open' : 'close');
       }
 
       /* Developer mode is a setting, not a URL flag, because the person who
@@ -6359,10 +6476,16 @@
         settings.music = setMusic.checked; persistSettings();
         if (settings.music) startTheme(); else stopTheme();
       });
+      setSfx.addEventListener('change', () => {
+        settings.sfx = setSfx.checked; persistSettings();
+        SFX.setEnabled(settings.sfx);
+        if (settings.sfx) SFX.play('click');   // the checkbox demonstrates itself
+      });
       setVol.addEventListener('input', () => {
         settings.vol = clampVol(setVol.value);
         setVolNum.textContent = settings.vol;
         bgm.volume = settings.vol / 100;
+        SFX.setVolume(settings.vol);
       });
       setVol.addEventListener('change', persistSettings);
       setCrt.addEventListener('change', () => {
@@ -6421,9 +6544,13 @@
           el: () => $('baseBtn'), also: () => $('basePeek'),
           title: '你的基地', body: '從現在起，你不是在戰鬥裡變強的，而是在這裡。進去看看——真的有一塊地在等你蓋東西。'
         },
+        /* Taught ON the tablet, because that is the only place they exist. The
+           two tabs stay off the strip until this lesson, so the device grows the
+           same way the rest of the interface does. */
         apps: {
-          el: () => $('achBtn'), also: () => $('feedBtn'),
-          title: '成就與大師動態', body: '動態會即時記錄人們怎麼談論你；成就跨存檔保留，還會解鎖基地的奇觀建築。'
+          el: () => document.querySelector('#tabletStrip button[data-app="ach"]'),
+          also: () => document.querySelector('#tabletStrip button[data-app="feed"]'),
+          title: '成就與大師動態', body: '這台平板還有兩個 app。動態會即時記錄人們怎麼談論你；成就跨存檔保留，還會解鎖基地的奇觀建築。'
         },
         tablet: {
           el: () => $('tabletBtn'),
@@ -7181,13 +7308,16 @@
       let gather = null;
 
       function goGather() {
-        if (!spendAp(1)) return;
+        // being handed the toolbag is part of learning the room, not an afternoon
+        if (firstGatherFree) firstGatherFree = false;
+        else if (!spendAp(1)) return;
         gather = { swing: 0, pos: 0, dir: 1, speed: 0.019, band: 0.30, total: { supply: 0, part: 0 }, done: false };
         gatherStat.textContent = `第 1 / ${GATHER_SWINGS} 次`;
         gatherSub.textContent = '協會核發之採集許可，每日三趟。掃描指針落在標定區內即可回收，越接近中心回收率越高。';
         gatherBtn.textContent = '停！';
         gatherBtn.onclick = gatherStop;
         gatherOverlay.classList.add('active');
+        SFX.play('open');
         gatherLoop();
       }
 
@@ -7196,6 +7326,12 @@
         gather.pos += gather.speed * gather.dir;
         if (gather.pos >= 1) { gather.pos = 1; gather.dir = -1; }
         if (gather.pos <= 0) { gather.pos = 0; gather.dir = 1; }
+        /* The scan ticks only while the needle is over the band. That single
+           sound is the whole skill of the minigame made audible — you can hit
+           it by ear, without staring at the bar. */
+        const inBand = Math.abs(gather.pos - 0.5) <= gather.band / 2;
+        if (inBand && !gather.wasIn) SFX.play('g.tick');
+        gather.wasIn = inBand;
         drawGatherBar();
         requestAnimationFrame(gatherLoop);
       }
@@ -7229,9 +7365,10 @@
         const off = Math.abs(gather.pos - 0.5);          // 0 = dead centre
         const half = gather.band / 2;
         let supply = 0, part = 0, verdict;
-        if (off <= half * 0.22) { supply = randInt(7, 10); part = randInt(6, 9); verdict = '✦ 完美！'; }
-        else if (off <= half) { supply = randInt(4, 6); part = randInt(3, 5); verdict = '✔ 命中'; }
-        else { supply = randInt(1, 2); part = randInt(0, 1); verdict = '… 差了點'; }
+        SFX.play('g.stop');
+        if (off <= half * 0.22) { supply = randInt(7, 10); part = randInt(6, 9); verdict = '✦ 完美！'; SFX.play('g.perfect'); }
+        else if (off <= half) { supply = randInt(4, 6); part = randInt(3, 5); verdict = '✔ 命中'; SFX.play('g.hit'); }
+        else { supply = randInt(1, 2); part = randInt(0, 1); verdict = '… 差了點'; SFX.play('g.miss'); }
         gather.total.supply += supply; gather.total.part += part;
         gather.swing++;
         gatherStat.textContent = `${verdict}　📦+${supply} ⚙️+${part}　（累計 📦${gather.total.supply} ⚙️${gather.total.part}）`;
@@ -7241,6 +7378,7 @@
           clearTimeout(gather.tip);
           addRes(gather.total);
           updateBaseDot(); renderBasePeek();
+          SFX.play('g.done');
           gatherSub.textContent = '收工。這些東西會直接進基地倉庫。';
           gatherBtn.textContent = '帶回基地 →';
           gatherBtn.onclick = () => {
@@ -7298,12 +7436,28 @@
         markTablet('base');   // they have now actually been inside
         if (baseAfterIntro) {
           const fn = baseAfterIntro; baseAfterIntro = null;
-          revealUI('apps', { silent: true });
-          setTimeout(() => {
-            const p = UI_PIECES.apps;
-            spotlight(p.el(), p.title, p.body, null, fn);
-          }, 260);
+          teachDeviceApps(fn);
         }
+      }
+
+      /* The lesson that follows the first Rival used to point at two buttons in
+         the header — i.e. at the street, where a master does not have a menu.
+         The two apps live on the tablet, so the tablet is what opens: the device
+         comes up in the player's hands, the new tabs are already on it, and the
+         spotlight points at the thing they will actually press next time.
+         The tablet closes again afterwards, because the game opened it, not the
+         player. */
+      function teachDeviceApps(next) {
+        revealUI('apps', { silent: true });
+        const openedForLesson = !tabletOverlay.classList.contains('active');
+        if (openedForLesson) toggleTablet(); else syncTabletStrip();
+        setTimeout(() => {
+          const p = UI_PIECES.apps;
+          spotlight(p.el(), p.title, p.body, null, () => {
+            if (openedForLesson && tabletOverlay.classList.contains('active')) toggleTablet();
+            next();
+          });
+        }, 420);
       }
 
       /* Talents used to be housed by hand in the removed panel. The research
@@ -7432,12 +7586,14 @@
         updateBaseDot();
         encountersDone = 0;
         labStep = 0; labUsedToday = {}; camCentred = false; delete lab.dataset.woke;
+        firstGatherFree = true;
         baseAfterIntro = null;
         spot.dataset.gate = '';
         spot.classList.remove('active');
         baseBtn.classList.remove('calling');
         veilUI();          // start bare; the interface arrives as it becomes relevant
         feedDot.classList.remove('show');
+        achDot.classList.remove('show');
         tabletInbox = []; tabletRead = {}; tabletOpenId = null; tabletOnClose = null; tabletSeen = {};
         tabletOverlay.classList.remove('active');
         tabletDot.classList.remove('show');
@@ -7539,6 +7695,15 @@
         }
       ];
       let labStep = 0;            // how far the one-time chain has progressed
+      /* The chain introduces the room one object at a time, so an object the
+         player cannot afford is a wall the whole day gets stuck behind: spend
+         all three slots going out on day one and the toolbag (1 時段) can never
+         be picked up, the chain never reaches the sleep capsule, and the day
+         cannot be ended at all.
+
+         The first pickup is therefore free: you are being handed the bag, not
+         spending an afternoon with it. */
+      let firstGatherFree = true;
       let labUsedToday = {};      // objects already spent on the current day
       let camX = 0, camTarget = 0, camMax = 0, camRaf = 0, labPointer = null, camCentred = false;
 
@@ -7577,6 +7742,7 @@
       /* first-person wake: lids part, blink, then the room pulls into focus */
       function playWake() {
         lab.classList.remove('awake', 'o1', 'o2', 'o3', 'o4');
+        SFX.play('wake');
         setTimeout(() => lab.classList.add('o1'), 260);
         setTimeout(() => lab.classList.add('o2'), 1000);
         setTimeout(() => { lab.classList.remove('o2'); lab.classList.add('o3'); }, 1200);
@@ -7648,6 +7814,15 @@
       }
 
       /* ---- what is live right now ---- */
+      /* What a lab object costs in 時段, in one place: the readout and the
+         action itself must never disagree about it. */
+      function labCost(o) {
+        if (!o) return 0;
+        if (o.act === 'intro' || o.act === 'rest' || o.act === 'base') return 0;
+        if (o.act === 'gather') return firstGatherFree ? 0 : 1;
+        if (o.act === 'debate') return rivalUsed[chapter] ? 2 : 0;
+        return 1;
+      }
       function labState(k) {
         const idx = LAB_OBJECTS.findIndex(o => o.k === k);
         if (idx > labStep) return 'locked';             // chain has not reached it
@@ -7658,8 +7833,7 @@
         if (o.act === 'intro') return 'live';
         if (o.act === 'rest') return 'live';
         if (o.act === 'base') return 'live';
-        const cost = o.act === 'debate' ? (rivalUsed[chapter] ? 2 : 0) : 1;
-        return ap >= cost ? 'live' : 'spent';
+        return ap >= labCost(o) ? 'live' : 'spent';
       }
 
       function renderLab() {
@@ -7674,7 +7848,12 @@
           el.querySelector('.hot-tag').textContent = o.act === 'intro'
             ? (tabletUnread() ? `${o.tag} · ${tabletUnread()} 則未讀` : o.tag)
             : (st === 'spent' ? '時段不足' : o.tag);
-          el.onclick = st === 'live' ? () => labUse(o) : null;
+          /* Sound is how the room tells you an object is alive before you commit
+             to it: a live thing ticks under the cursor, a spent one does not. */
+          el.onmouseenter = st === 'live' ? () => SFX.play('hover') : null;
+          el.onclick = st === 'live'
+            ? () => labUse(o)
+            : (st === 'spent' ? () => SFX.play('denied') : null);
         });
         labClock.textContent = `觀測第 ${day} 日 / ${TOTAL_DAYS}　·　尚餘 ${ap} 個時段`;
         labHint.innerHTML = labStep < LAB_OBJECTS.length
@@ -7682,7 +7861,15 @@
           : '游標移向畫面左右邊緣可轉動視線<br>選擇一件事做，或回到膠囊床結束今天';
       }
 
+      /* One voice per object, so the room is legible with your eyes shut: the
+         hatch has a mechanism, the tools are handled, the capsule closes. */
+      const LAB_SFX = {
+        intro: 'open', door: 'door', gather: 'pickup',
+        base: 'pickup', debate: 'pickup', rest: 'sleep'
+      };
+
       function labUse(o) {
+        SFX.play(LAB_SFX[o.act] || 'click');
         if (o.act === 'intro') {
           const first = labStep === 0;
           if (first) {
@@ -7735,6 +7922,7 @@
         tabletOpenId = null;
         if (first && tabletDef('intro')) openTabletMessage('intro');
         else renderTablet();
+        syncTabletStrip();
         tabletOverlay.classList.add('active');
         /* Silent: the header button sits behind the lab overlay, so a spotlight
            would point at something the player cannot see. */
@@ -7756,7 +7944,8 @@
             desc: '外出走動。協會將記錄沿途所有目擊者提交的超譯。'
           },
           {
-            k: 'gather', cost: 1, icon: '⛏️', name: '採集物資',
+            k: 'gather', cost: firstGatherFree ? 0 : 1, icon: '⛏️',
+            name: firstGatherFree ? '採集物資（首次免費）' : '採集物資',
             desc: '前往廢墟邊緣執行採集許可。三趟。'
           },
           {
@@ -8443,11 +8632,11 @@
       });
 
       function showTitleMenu() {
-        titleMenu.classList.add('active');
+        titleMenu.classList.remove('gone');
         startTheme();
       }
       function hideTitleMenu() {
-        titleMenu.classList.remove('active');
+        titleMenu.classList.add('gone');
       }
 
       menuNew.addEventListener('click', () => {
@@ -8468,15 +8657,14 @@
       renderFactionPanel();
       updateHUD();
       renderTicker();
-      feedBtn.addEventListener('click', toggleFeed);
+      /* 成就 / 動態 / 校準 have no header button any more: they are opened from
+         the tablet's app strip, and their close buttons drop back into it. */
       feedCloseBtn.addEventListener('click', toggleFeed);
       tabletBtn.addEventListener('click', toggleTablet);
       tabletCloseBtn.addEventListener('click', toggleTablet);
-      achBtn.addEventListener('click', toggleAch);
       achCloseBtn.addEventListener('click', toggleAch);
       baseBtn.addEventListener('click', toggleBase);
       basePeekBtn.addEventListener('click', toggleBase);
-      setBtn.addEventListener('click', toggleSettings);
       setCloseBtn.addEventListener('click', toggleSettings);
       // the base spotlight is a gate: only opening the base clears it
       // listener lives on the veil, since #spot itself no longer takes pointer events
@@ -8512,6 +8700,9 @@
           get baseActive() { return BaseScene.isOpen(); },
           // tablet delivery is chapter/day gated, so it is slow to reach by playing
           deliverTablet, toggleTablet, openTabletMessage, renderTablet,
+          // the coach beats sit behind a whole chapter of play; drive them directly
+          teachDeviceApps, forceBaseIntro, closeSpotlight,
+          get uiShown() { return uiShown; },
           get tabletInbox() { return tabletInbox.slice(); },
           get tabletUnread() { return tabletUnread(); },
           get tabletRead() { return tabletRead; },

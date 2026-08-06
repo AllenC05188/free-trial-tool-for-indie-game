@@ -6,7 +6,8 @@
     "start": "electron .",
     "base": "start \"\" .scratch\\interactive-base\\base-scene.html",
     "sheet": "node tools/make-sheet-data.js",
-    "package": "electron-packager . 天才模擬器 --platform=win32 --arch=x64 --overwrite"
+    "package": "electron-packager . 天才模擬器 --platform=win32 --arch=x64 --overwrite",
+    "check:layout": "node tools/check-overlay-fit.js"
   },
   "devDependencies": {
     "electron": "^30.0.0",

@@ -44,7 +44,10 @@ window.TiltMaze = (function () {
   let open = false;
   let endless = null;
 
-  function blip() { /* hook for sfx once the prototype gets audio */ }
+  /* Sound goes through the host's SFX module. Guarded because the prototype
+     harness loads this file on its own, without the rest of the terminal. */
+  const sfx = (n, o) => { if (window.SFX) window.SFX.play(n, o); };
+  function blip() { sfx('t.switch'); }
 
 
   const BALL_CH = ['o', 'p'], HOLE_CH = ['O', 'P'];
@@ -352,7 +355,14 @@ window.TiltMaze = (function () {
       if (key !== b.tile) {
         b.tile = key;
         const [nx, ny] = key.split(',').map(Number);
-        if (tileAt(nx, ny) === 'S') { f.latched = !f.latched; blip(); }
+        const nch = tileAt(nx, ny);
+        if (nch === 'S') { f.latched = !f.latched; blip(); }
+        /* Terrain announces itself on ENTRY, not every frame: one skid when the
+           ball reaches the ice, one suck when it reaches the goo. Held down, they
+           would turn into a drone and stop meaning anything. */
+        const sp0 = Math.hypot(b.vx, b.vy);
+        if (nch === 'I' && ch !== 'I' && sp0 > 90) sfx('t.ice');
+        if (nch === 'G' && ch !== 'G' && sp0 > 60) sfx('t.goo');
       }
 
       // sinking
@@ -360,7 +370,10 @@ window.TiltMaze = (function () {
         if (b.sunk || h.color !== b.color) return;
         const d = Math.hypot(h.x - b.x, h.y - b.y);
         const sp = Math.hypot(b.vx, b.vy);
-        if (d < TILE * 0.30 && sp < SINK_SPEED) { b.sunk = 0.0001; b.vx = b.vy = 0; b.sx = h.x; b.sy = h.y; }
+        if (d < TILE * 0.30 && sp < SINK_SPEED) {
+          b.sunk = 0.0001; b.vx = b.vy = 0; b.sx = h.x; b.sy = h.y;
+          sfx('t.sink');
+        }
       });
     });
 
@@ -392,7 +405,17 @@ window.TiltMaze = (function () {
       const ux = dx / d, uy = dy / d, push = b.r - d;
       b.x += ux * push; b.y += uy * push;
       const vn = b.vx * ux + b.vy * uy;
-      if (vn < 0) { b.vx -= (1 + rest) * vn * ux; b.vy -= (1 + rest) * vn * uy; }
+      if (vn < 0) {
+        b.vx -= (1 + rest) * vn * ux; b.vy -= (1 + rest) * vn * uy;
+        /* A ball resting in a corner re-solves against two tiles every frame.
+           Gate impacts on real speed AND a short cooldown, otherwise sitting
+           still would buzz. */
+        const imp = -vn;
+        if (imp > 55 && (b.hitAt === undefined || field.elapsed - b.hitAt > 0.055)) {
+          b.hitAt = field.elapsed;
+          sfx('t.bounce', { v: clamp(imp / 620, 0, 1) });
+        }
+      }
     }
   }
 
@@ -408,6 +431,7 @@ window.TiltMaze = (function () {
       if (va - vb <= 0) continue;
       const e = 0.85, imp = (1 + e) * (va - vb) / 2;
       a.vx -= imp * ux; a.vy -= imp * uy; b.vx += imp * ux; b.vy += imp * uy;
+      if (va - vb > 45) sfx('t.knock', { v: clamp((va - vb) / 520, 0, 1) });
     }
   }
 
@@ -927,6 +951,14 @@ window.TiltMaze = (function () {
     clockFill.style.width = pct + '%';
     clockFill.classList.toggle('calm', pct > 33);
     clockRight.textContent = f.timeLeft.toFixed(1) + ' 秒';
+    /* The last five seconds get a heartbeat, one per whole second. The bar is at
+       the top of the screen and the player is watching the ball — this is the
+       only warning they will actually receive. */
+    const sec = Math.ceil(f.timeLeft);
+    if (sec !== f.lastSec) {
+      if (f.lastSec !== undefined && sec > 0 && sec <= 5) sfx('t.warn');
+      f.lastSec = sec;
+    }
   }
 
   function setInputEnabled(on) {
@@ -942,7 +974,10 @@ window.TiltMaze = (function () {
     if (held[dir] === on) return;
     held[dir] = on;
     DPAD[dir].classList.toggle('held', on);
-    if (on) field.tilts++;
+    if (on) { field.tilts++; sfx('t.tilt', { v: 1 }); }
+    // the board coming back to level is its own sound, but only once — when the
+    // LAST held direction is let go, not on every finger lifting off.
+    else if (open && field && !Object.values(held).some(Boolean)) sfx('t.level');
   }
   const KEYMAP = {
     ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
@@ -1051,6 +1086,7 @@ window.TiltMaze = (function () {
       if (!open) return;
       field.running = true;
       setInputEnabled(true);
+      sfx('t.start');
       arenaCap.textContent = def.name;
     }, 620);
   }
@@ -1059,6 +1095,7 @@ window.TiltMaze = (function () {
     setInputEnabled(false);
     const stats = { won: true, secs: field.elapsed, tilts: field.tilts, left: field.timeLeft };
     arenaCap.textContent = '……落定了。';
+    sfx('t.win');
     fx.mood = 'land';
     bust(npcTok, currentNPC.faction, 'realize');
     whoState.textContent = '有什麼接上了';
@@ -1069,6 +1106,7 @@ window.TiltMaze = (function () {
     const stats = { won: false, secs: field.elapsed, tilts: field.tilts, left: 0 };
     arenaCap.classList.add('warn');
     arenaCap.textContent = '窗口關閉了。';
+    sfx('t.fail');
     fx.mood = 'lost';
     bust(npcTok, currentNPC.faction, 'awe');
     whoState.textContent = '沒有接上';
@@ -1117,6 +1155,7 @@ window.TiltMaze = (function () {
     setTimeout(() => {
       if (!open || mode !== 'endless') return;
       field.running = true; setInputEnabled(true);
+      sfx('t.start');
     }, 450);
   }
   function endlessWin() {
@@ -1129,6 +1168,7 @@ window.TiltMaze = (function () {
     const gain = 100 + Math.round(left * 10) + endless.streak * 25;
     endless.score += gain;
     updateScore();
+    sfx('t.win');
     arenaCap.textContent = `+${gain}　連勝 ${endless.streak}`;
     setTimeout(() => { if (open && mode === 'endless') nextEndlessLevel(); }, 900);
   }
@@ -1136,6 +1176,7 @@ window.TiltMaze = (function () {
     setInputEnabled(false);
     endless.totalTime += field.elapsed;
     arenaCap.classList.add('warn');
+    sfx('t.fail');
     arenaCap.textContent = '時間到。';
     setTimeout(showReport, 700);
   }
